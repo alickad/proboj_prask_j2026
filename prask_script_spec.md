@@ -1,4 +1,4 @@
-# Prask Script language specs
+# Prask Script language specification
 File extension: .psc or .txt(when windows freaks out)
 
 Keywords: `program:` (directive), `nech`, `ak`, `koniec`, `zahraj`, `KAMEN`, `PAPIER`, `NOZNICE`
@@ -36,7 +36,8 @@ conditional statements (`ak CONDITION ... koniec`),
 return statement (`zahraj ITEM`)
 
 #### Variable assignment
-Assign the value of expression to a variable
+Assign the value of expression to a variable.
+
 Syntax: 
 ```praskscript
 NAME = EXPRESSION
@@ -46,6 +47,7 @@ NAME = EXPRESSION
 
 #### Conditional statements
 Execute contained code if condition is integer bigger than 0. Nesting is allowed.
+
 Syntax:
 ```praskscript
 ak CONDITION
@@ -67,10 +69,11 @@ zahraj ITEM
 This immidiately halts the program and plays the specified turn.
 
 ## Predefined variables
-These variables carry data about the current game and are set by the interpreter before Program section is executed.
-All predefined variables are read-only
+These variables carry data about the current game. All of them are set by the interpreter before Init or Program section is executed. If a variable is set before Program, it's behaviour in Init is undefined.
+**All predefined variables are read-only.**
 
 ### Basic constants
+*Set before Init*
 ```
 true = 1
 True = 1
@@ -78,8 +81,17 @@ false = 0
 False = 0
 ```
 
+### Game info
+*Set before Init*
+```
+TOTAL_ROUNDS
+```
+Total number of rounds in a game
+
 ### Opponent's last turn
-These predefined variables change every time program section is executed and reflect opponent's choice in last round. If this is the first turn, all of them are set to 0 (false)
+*Set before Program*
+
+These predefined variables change every time program section is executed and reflect opponent's choice in last round. If this is the first turn, all of them are set to 0 (false).
 ```
 OPONENT_ZAHRAL_KAMEN
 ```
@@ -93,11 +105,6 @@ OPONENT_ZAHRAL_NOZNICE
 ```
 1 if opponent played NOZNICE last round, 0 otherwise
 
-#### Game info
-```
-TOTAL_ROUNDS
-```
-Total number of rounds in a game, this variable is set only once, before init
 
 ## Expressions
 Expression can perform mathematic operations on variables and constants. They must be written on one line. 
