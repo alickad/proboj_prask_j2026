@@ -125,7 +125,7 @@ Supported mathematic operations:
 ### Basic operations:
 - Addition `A + B` - add two values
 - Subtraction `A - B` - subtract B from A
-- Negation `0 - A` - negate A
+- Negation `-A` - negate A
 - Multiplication `A * B` or `A >< B` - multiply A and B
 - Whole number division `A / B` - devide A with B and truncate toward zero (discarding any fractional part), division by zero results in program crash
 - Modulo operation `A % B` - gives a remained of division A / B (always returns integer >=0)
@@ -152,6 +152,51 @@ Parenthesis shall follow standard syntax.
 Example: `(A + B) * C`
 In the example parenthesis give priority to addition over multiplication.
 
+### Comments
+Prask scirpt supports full-line comments. Everyting after `#` charected up to newline characted is ignored
 
+Syntax:
+```praskscript
+# This is a comment
+nech X = 2 # This also a valid comment
+
+program: #Comment here
+
+# This is a comment too!
+# zahraj KAMEN # this will not be executed, it's a comment
+
+zahraj PAPIER
+```
+
+### Example program
+```praskscript
+# Keep track of what turn are we playing
+nech tah = -1
+
+program:
+tah = tah + 1
+
+# We will play PAPIER every even turn
+ak !(tah % 2)
+zahraj PAPIER
+koniec
+
+# If the opponent plays the same thing twice in a row, we will win this round
+ak OPONENT_ZAHRAL_KAMEN
+zahraj PAPIER
+koniec
+
+ak OPONENT_ZAHRAL_PAPIER
+zahraj NOZNICE
+koniec
+
+ak OPONENT_ZAHRAL_NOZNICE
+zahraj KAMEN
+koniec
+
+
+# Always add fallback, so your program doesn't crash
+zahraj KAMEN
+```
 
 **Reviewed by GeminiAI**
