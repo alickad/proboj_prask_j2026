@@ -131,7 +131,7 @@ int read_word(ProgramReader *reader, char *dest) {
 	int c;
 	success = 1;
 	c = fgetc(reader->stream);
-	if (c < 'a' || c > 'z') {
+	if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) {
 		success = 0;
 		goto end;
 	}
@@ -139,7 +139,7 @@ int read_word(ProgramReader *reader, char *dest) {
 		*dest = c;
 		dest++;
 		c = fgetc(reader->stream);
-		if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) goto end;
+		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) goto end;
 	}
 	/* Ak sme sa dostali sem, tak mame na vstupe slovo, co je moc dlhe */
 	/* TODO: compile error: moc dlhe slovo */
@@ -188,7 +188,7 @@ int read_keyword(ProgramReader *reader, char *keyword) {
 	/* Ak sme precitali cele keyword, este skontrolujeme, ci tam to slovo aj naozaj konci. */
 	c = fgetc(reader->stream);
 	printf("success, read character '%c' (code %d)\n", c, c);
-	if (c >= 'a' && c <= 'z') goto fail;
+	if (c >= 'a' && c <= 'z' || (c >= 'A' && c <= 'Z')) goto fail;
 	/* Precitali sme aj znak za slovom, takze ho vratime spat. */
 	ungetc(c, reader->stream);
 	read_whitespace(reader);
@@ -234,7 +234,7 @@ int read_keyword(ProgramReader *reader, char *keyword) {
 		ci nahodou to slovo nepokracuje dalej, kedy by sa to neratalo */
 	c = fgetc(reader->stream);
 	if (c != EOF) ungetc(c, reader->stream);
-	if (c >= 'a' && c <= 'z') {
+	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
 		for (i--; i >= 0; i--) ungetc(keyword[i], reader->stream);
 		return 0;
 	}
