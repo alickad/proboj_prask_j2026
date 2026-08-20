@@ -1,0 +1,26 @@
+body {
+    background-color: black;
+    color: white;
+    grid: 1;
+    align-content: center;
+    padding-left: 10vw;
+    padding-right: 10vw;
+}
+
+button {
+    background-color: black;
+    color: white;
+    border: 1px solid white;
+    padding: 2px 5px;
+}
+
+.action_button {
+    font-size: medium;
+    font-weight: bold;
+    border: 2px solid white;
+}
+
+#upload_div {
+
+}
+
