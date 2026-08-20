@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <title>Proboj observer</title>
+</head>
+<body onload="init()">
+    <div id="upload_div">
+        <p>Choose game replay:</p>
+        <p><input id="upload_input" type="file" title="Upload game..."></p>
+    </div>
+    <div id="controls">
+        <button class="action_button">Slower</button>
+        <button class="action_button">Previous</button>
+        <button class="action_button" id="pause_button" onclick="game_controls_action('pause')">Pause</button>
+        <button class="action_button">Next</button>
+        <button class="action_button">Faster</button>
+    </div>
+    <div id="replay_canvas">
+        <div id="replay_canvas_history"></div>
+        <div id="replay_canvas_current"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
