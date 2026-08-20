@@ -509,7 +509,10 @@ void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variab
 			if (read_char(reader, '=')) comparison = INST_GREATER_EQUAL;
 			else comparison = INST_GREATER_THAN;
 		}
-		else if (read_char(reader, '=')) comparison = INST_EQUAL;
+		else if (read_char(reader, '=')) {
+			read_char(reader, '='); // Just in case ze niekto pouziva `==` namiesto `=`
+			comparison = INST_EQUAL;
+		}
 		else compile_error(reader, "tu by malo byt porovnanie, teda < <= > alebo >=");
 		parse_expression(reader, writer, variable_names);
 		write_instruction(writer, comparison);
@@ -575,7 +578,10 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 	read_new_line(&reader);
 
 	/* sekcia na zaciatku: nastavovanie premennych */
-	while (read_keyword(&reader, "nech")) {
+	while (!read_keyword(&reader, "program:")) {
+		if (!read_keyword(&reader, "nech")) {
+			compile_error(&reader, "v sekcii init musia vsetky riadky zacinat klucovym slovom 'nech'");
+		}
 		int i; /* loop counter */
 		char name[MAX_VARIABLE_LENGTH]; /* nazov premennej */
 		int value; /* initial value premennej */
@@ -604,6 +610,8 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 		if (!read_new_line(&reader))
 			compile_error(&reader, "za hodnotou premennej musi byt koniec riadku");
 	}
+	if (!read_new_line(&reader))
+		compile_error(&reader, "za direktivou 'program:' musi nasledovat novy riadok");
 
 	while (!feof(reader.stream)) {
 		/* TODO: mozno sa tu chceme pozriet, ci neni nejaky ferror,
