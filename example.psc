@@ -1,6 +1,6 @@
 nech X = 1
 nech Y = 2
-nech Z = X + Y
+nech Z = 2
 nech akcia = 0
 nech tah = 0
 
@@ -9,12 +9,12 @@ tah = tah + 1
 X = Y/2*3
 Z = X + Z
 
-akcia = (Z + tah) % 3
+akcia = (Z + tah)
 
-ak akcia == 1
-zahraj KAMEN
+ak (akcia == 1)
+zahraj kamen
 koniec
-ak akcia == 2
-zahraj PAPIER
+ak (akcia == 2)
+zahraj papier
 koniec
-zahraj NOZNICE
+zahraj noznice

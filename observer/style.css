@@ -24,3 +24,74 @@ button {
 
 }
 
+#replay_canvas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100px;
+    /* grid-template-columns: 1fr 1fr; */
+}
+
+#replay_canvas_current {
+    display: flex;
+    justify-content: center;
+    place-items: center;
+    width: 100%;
+}
+
+#current_turn_p1, #current_turn_p2 {
+    font-size: xx-large;
+} 
+
+#replay_canvas_history {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    border: 2px solid white;
+    border-radius: 10px;
+    padding: 3px;
+    margin-top: 15px;
+    width: 150px;
+    height: 80vh;
+    overflow: scroll;
+}
+
+
+#p1_history, #p2_history, #history_turn_counter {
+    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+#p1_history div, #p2_history div, #history_turn_counter div {
+    border-top: 2px solid black;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+#p1_history div {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
+#p2_history div {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+#p1_history p, #p2_history p, #history_turn_counter p {
+    text-align: center;
+    place-content: center;
+    background-color: black;
+    font-size: medium;
+    border-radius: 10px;
+    padding-bottom: 5px;
+    padding-top: 5px;
+    padding-left: 5px;
+    padding-right: 5px;
+    margin: 10px;
+    /* width: min-content; */
+}
+
