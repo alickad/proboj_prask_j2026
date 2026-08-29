@@ -4,8 +4,8 @@ const TURN_EMOJI = new Map([['KAMEN', '🪨'], ['PAPIER', '📄'], ['NOZNICE', '
 let TURN_NUMBER_ELEMENTS = [];
 let TURN_PAIR_ELEMENTS = [];
 let CURRENT_TURN_ELEMENTS = [null, null];
-let FOCUSED_TURN = -1;
-let TURN = null;
+let CURRENT_TURN_RESULT_TEXT_ELEMENTS = [null, null];
+let CURRENT_TURN = -1;
 let SPEED = 1;
 let PAUSED = true;
 let PLAYER_NAMES = [null, null];
@@ -90,14 +90,13 @@ function parseGameData(data) {
         }
         GAME_TURNS.push(line);
     }
-    TURN = 0;
+    CURRENT_TURN = 0;
     // console.log(`Done parsing data.`)
     return true;
 }
 function loadGameData(data) {
     const result = parseGameData(data);
     // console.log(`Parsedata returned: ${result}`)
-    document.getElementById('replay_canvas').style.display = 'block';
     if (result == null) {
         alert(`Error parsing game data: ${ERROR_MSG}.`);
     }
@@ -129,6 +128,12 @@ function whoWonMatch(turn1, turn2) {
     return WINNING_MOVES[turn1] === turn2 ? 1 : 2;
 }
 function setupTurnHistory(turns) {
+    const current_turn_result_element1 = document.getElementById("current_turn_result_text_p1");
+    const current_turn_result_element2 = document.getElementById("current_turn_result_text_p2");
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS = [
+        current_turn_result_element1 instanceof HTMLParagraphElement ? current_turn_result_element1 : null,
+        current_turn_result_element2 instanceof HTMLParagraphElement ? current_turn_result_element2 : null,
+    ];
     const current_turn_element1 = document.getElementById("current_turn_p1_text");
     const current_turn_element2 = document.getElementById("current_turn_p2_text");
     CURRENT_TURN_ELEMENTS = [
@@ -160,7 +165,7 @@ function setupTurnHistory(turns) {
         history_p2?.appendChild(element2);
         TURN_PAIR_ELEMENTS.push([element1, element2]);
     });
-    focusTurn(0);
+    changeTurn(0);
 }
 function game_controls_action(action) {
     switch (action) {
@@ -189,7 +194,7 @@ function _focusScrollOnTurn(turn) {
     }
     TURN_NUMBER_ELEMENTS[turn].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'start' });
 }
-function _unfocusTurn(turn) {
+function _unfocusTurnInHistory(turn) {
     if (turn < 0 || turn >= TURN_NUMBER_ELEMENTS.length) {
         return;
     }
@@ -197,47 +202,104 @@ function _unfocusTurn(turn) {
     turn_number_element.style.backgroundColor = 'black';
     turn_number_element.style.color = 'white';
 }
-function focusTurn(turn) {
+function _focusTurnInHistory(turn) {
+    if (turn < 0 || turn >= GAME_TURNS.length) {
+        return;
+    }
+    const turn_number_element = TURN_NUMBER_ELEMENTS[turn];
+    turn_number_element.style.backgroundColor = 'yellow';
+    turn_number_element.style.color = 'black';
+}
+function changeTurn(turn) {
     console.log(`FOCUS TURN ${turn}`);
-    _unfocusTurn(FOCUSED_TURN);
+    _unfocusTurnInHistory(CURRENT_TURN);
+    _focusTurnInHistory(turn);
     if (turn < 0 || turn >= TURN_NUMBER_ELEMENTS.length) {
         return;
     }
-    FOCUSED_TURN = turn;
-    const turn_number_element = TURN_NUMBER_ELEMENTS[turn];
-    const [element1, element2] = TURN_PAIR_ELEMENTS[turn];
-    turn_number_element.style.backgroundColor = 'yellow';
-    turn_number_element.style.color = 'black';
-    console.log(`CURRENT_TURN_ELEMENTS: ${CURRENT_TURN_ELEMENTS[0]?.textContent}`);
-    if (CURRENT_TURN_ELEMENTS[0]) {
-        CURRENT_TURN_ELEMENTS[0].textContent = TURN_EMOJI.get(GAME_TURNS[turn][0]) ?? "Error";
-        console.log(`Set emoji to ${TURN_EMOJI.get(GAME_TURNS[turn][0]) ?? "Error"}`);
+    CURRENT_TURN = turn;
+    if (turn < 0 || turn >= GAME_TURNS.length) {
+        return;
     }
-    else {
-        console.log(`Coundn't find current turn element 0`);
+    // console.log(`CURRENT_TURN_ELEMENTS: ${CURRENT_TURN_ELEMENTS[0]?.textContent}`)
+    // if (CURRENT_TURN_ELEMENTS[0]){
+    //     CURRENT_TURN_ELEMENTS[0].textContent = TURN_EMOJI.get(GAME_TURNS[turn][0]) ?? "Error";
+    //     // console.log(`Set emoji to ${TURN_EMOJI.get(GAME_TURNS[turn][0]) ?? "Error"}`)
+    // } else {console.log(`Coundn't find current turn element 0`)} 
+    // if (CURRENT_TURN_ELEMENTS[1]){
+    //     CURRENT_TURN_ELEMENTS[1].textContent = TURN_EMOJI.get(GAME_TURNS[turn][1]) ?? "Error";
+    // } else {console.log(`Coundn't find current turn element 1`)} 
+    const winner = whoWonMatch(GAME_TURNS[turn][0], GAME_TURNS[turn][1]);
+    if (!CURRENT_TURN_RESULT_TEXT_ELEMENTS[0] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]) {
+        console.error(`Current turn elements not loaded.`);
+        return;
     }
-    if (CURRENT_TURN_ELEMENTS[1]) {
-        CURRENT_TURN_ELEMENTS[1].textContent = TURN_EMOJI.get(GAME_TURNS[turn][1]) ?? "Error";
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[0].textContent = ['DRAW', 'WINNER', 'LOSER'][winner];
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[1].textContent = ['DRAW', 'LOSER', 'WINNER'][winner];
+    if (!CURRENT_TURN_ELEMENTS[0] || !CURRENT_TURN_ELEMENTS[1]) {
+        console.error(`Current turn elements not loaded.`);
+        return;
     }
-    else {
-        console.log(`Coundn't find current turn element 1`);
-    }
+    CURRENT_TURN_ELEMENTS[0].textContent = TURN_EMOJI.get(GAME_TURNS[turn][0]) ?? GAME_TURNS[turn][0];
+    CURRENT_TURN_ELEMENTS[0].style.backgroundColor = [DRAW_COLOR, WINNER_COLOR, LOSER_COLOR][winner];
+    CURRENT_TURN_ELEMENTS[1].textContent = TURN_EMOJI.get(GAME_TURNS[turn][1]) ?? GAME_TURNS[turn][1];
+    CURRENT_TURN_ELEMENTS[1].style.backgroundColor = [DRAW_COLOR, LOSER_COLOR, WINNER_COLOR][winner];
     _focusScrollOnTurn(turn);
 }
-function focusNextTurn() {
+function nextTurn() {
     console.log(`FOCUS_NEXT`);
-    if (FOCUSED_TURN >= TURN_NUMBER_ELEMENTS.length - 1) {
+    if (CURRENT_TURN >= TURN_NUMBER_ELEMENTS.length - 1) {
         return;
     }
-    focusTurn(FOCUSED_TURN + 1);
+    changeTurn(CURRENT_TURN + 1);
 }
-function focusPreviousTurn() {
+function previousTurn() {
     console.log(`FOCUS_PREVIOUS`);
-    if (FOCUSED_TURN <= 0) {
+    if (CURRENT_TURN <= 0) {
         return;
     }
-    focusTurn(FOCUSED_TURN - 1);
+    changeTurn(CURRENT_TURN - 1);
 }
 function DEBUGisinview() {
     console.log(`Is in view? ${isScrolledIntoView(TURN_NUMBER_ELEMENTS[17])} ${TURN_NUMBER_ELEMENTS[17].innerText}`);
+}
+function animateTurn(turn) {
+    function setBothTurnResultElementsTo(text) {
+        CURRENT_TURN_RESULT_TEXT_ELEMENTS.forEach((element) => {
+            if (!element) {
+                return;
+            }
+            element.textContent = text;
+        });
+    }
+    if (!turn) {
+        turn = CURRENT_TURN + 1;
+    }
+    if (turn < 0 || turn >= GAME_TURNS.length) {
+        return;
+    }
+    if (!CURRENT_TURN_ELEMENTS[0] || !CURRENT_TURN_ELEMENTS[1]) {
+        console.error(`Current turn elements not loaded.`);
+        return;
+    }
+    if (!CURRENT_TURN_RESULT_TEXT_ELEMENTS[0] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]) {
+        console.error(`Current turn elements not loaded.`);
+        return;
+    }
+    CURRENT_TURN_ELEMENTS.forEach((element) => {
+        if (!element) {
+            return;
+        }
+        element.textContent = "";
+        element.style.backgroundColor = "#000000";
+    });
+    _focusTurnInHistory(turn);
+    _unfocusTurnInHistory(CURRENT_TURN);
+    // Countdown from 3 to 0
+    for (let i = 0; i < 4; i++) {
+        setTimeout(() => setBothTurnResultElementsTo((3 - i).toString()), i * 1000);
+    }
+    setTimeout(() => {
+        changeTurn(turn);
+    }, 3000);
 }

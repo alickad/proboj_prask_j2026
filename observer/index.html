@@ -14,11 +14,11 @@
     </div>
     <div id="controls">
         <button class="action_button">Slower</button>
-        <button class="action_button" onclick="focusPreviousTurn()">Previous</button>
+        <button class="action_button" onclick="previousTurn()">Previous</button>
         <button class="action_button" id="pause_button" onclick="game_controls_action('pause')">Pause</button>
-        <button class="action_button" onclick="focusNextTurn()">Next</button>
+        <button class="action_button" onclick="nextTurn()">Next</button>
         <button class="action_button">Faster</button>
-        <button onclick="DEBUGisinview()">DEBUG</button>
+        <button onclick="animateTurn()">DEBUG</button>
     </div>
     <div id="replay_canvas">
         <div id="replay_canvas_history">
@@ -28,8 +28,8 @@
             <div id="p2_history"></div>
         </div>
         <div id="replay_canvas_current">
-            <div id="current_turn_p1"><p id="current_turn_p1_text">p1</p></div>
-            <div id="current_turn_p2"><p id="current_turn_p2_text">p2</p></div>
+            <div id="current_turn_p1"><p id="current_turn_p1_text">p1</p><p id="current_turn_result_text_p1">ahoj</p></div>
+            <div id="current_turn_p2"><p id="current_turn_p2_text">p2</p><p id="current_turn_result_text_p2">ahoj</p></div>
         </div>
     </div>
     <script src="script.js"></script>

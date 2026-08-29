@@ -26,21 +26,36 @@ button {
 
 #replay_canvas {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100px;
+    grid-template-columns: auto 1fr;
+    width: 100%;
     /* grid-template-columns: 1fr 1fr; */
 }
 
 #replay_canvas_current {
     display: flex;
+    align-items: center;
     justify-content: center;
-    place-items: center;
     width: 100%;
 }
 
-#current_turn_p1, #current_turn_p2 {
-    font-size: xx-large;
+#current_turn_p1 {
+    margin-right: 25%;
+    margin-bottom: 20vh;
+    text-align: center;
+}
+
+#current_turn_p2 {
+    margin-bottom: 20vh;
+    text-align: center;
 } 
+
+#current_turn_result_text_p1, #current_turn_result_text_p2 {
+    font-size: 100%;
+}
+#current_turn_p1_text, #current_turn_p2_text {
+    margin-bottom: 5vh;
+    font-size: 500%;
+}
 
 #replay_canvas_history {
     display: grid;
