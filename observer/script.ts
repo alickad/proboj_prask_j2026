@@ -1,6 +1,6 @@
 const VALID_TURNS = ['KAMEN', 'PAPIER', 'NOZNICE', 'error'];
 const TURN_EMOJI = new Map([['KAMEN', '🪨'], ['PAPIER', '📄'], ['NOZNICE', '✂️'], ['error', '⚠️']]);
-let TURN_NUMBER_ELEMENTS: HTMLParagraphElement[] = [];
+let TURN_NUMBER_ELEMENTS: HTMLButtonElement[] = [];
 let TURN_PAIR_ELEMENTS: Array<[HTMLParagraphElement, HTMLParagraphElement]> = [];
 let CURRENT_TURN_ELEMENTS: [HTMLParagraphElement|null, HTMLParagraphElement|null] = [null, null];
 let CURRENT_TURN_RESULT_TEXT_ELEMENTS: [HTMLParagraphElement|null, HTMLParagraphElement|null] = [null, null];
@@ -106,7 +106,8 @@ function loadGameData(data: string[]){
     } else {
         console.log(`Loaded succesfully!`)
     }
-    setupTurnHistory(GAME_TURNS);
+    document.getElementById("upload_div")!.style.display = 'none';
+    setupTurnReplay(GAME_TURNS);
 }
 
 // console.log(parseGameData(
@@ -133,7 +134,10 @@ function whoWonMatch(turn1: string, turn2: string) {
     return WINNING_MOVES[turn1] === turn2 ? 1 : 2;
 }
 
-function setupTurnHistory(turns: string[][]){
+function setupTurnReplay(turns: string[][]){
+    document.getElementById("controls")!.style.display = 'block';
+    document.getElementById("replay_canvas")!.style.display = 'grid';
+
     const current_turn_result_element1 = document.getElementById("current_turn_result_text_p1");
     const current_turn_result_element2 = document.getElementById("current_turn_result_text_p2");
     CURRENT_TURN_RESULT_TEXT_ELEMENTS = [
@@ -153,8 +157,9 @@ function setupTurnHistory(turns: string[][]){
     let history_p2 = document.getElementById("p2_history");
     turns.forEach(
         (turn, index) => {
-            const turn_number_element = document.createElement('p');
+            const turn_number_element = document.createElement('button');
             turn_number_element.innerText = index.toString();
+            turn_number_element.onclick = () => {changeTurn(index)};
             turn_counter?.appendChild(turn_number_element);
             TURN_NUMBER_ELEMENTS.push(turn_number_element);
 
@@ -308,7 +313,7 @@ function animateTurn(turn?: number) {
     CURRENT_TURN_ELEMENTS.forEach(
         (element) => {
             if (!element) {return;}
-            element.textContent = "";
+            element.textContent = "✊";
             element.style.backgroundColor = "#000000";
         }
     )

@@ -24,8 +24,12 @@ button {
 
 }
 
+#controls {
+    display: none;
+}
+
 #replay_canvas {
-    display: grid;
+    display: none; /*ONLY SHOW THIS AFTER FILE IS LOADED: grid;*/
     grid-template-columns: auto 1fr;
     width: 100%;
     /* grid-template-columns: 1fr 1fr; */
@@ -53,8 +57,10 @@ button {
     font-size: 100%;
 }
 #current_turn_p1_text, #current_turn_p2_text {
-    margin-bottom: 5vh;
+    margin-bottom: 3vh;
     font-size: 500%;
+    border-radius: 25px;
+    padding: 10px;
 }
 
 #replay_canvas_history {
@@ -96,11 +102,12 @@ button {
     border-bottom-right-radius: 10px;
 }
 
-#p1_history p, #p2_history p, #history_turn_counter p {
+#p1_history p, #p2_history p, #history_turn_counter button {
     text-align: center;
     place-content: center;
     background-color: black;
     font-size: medium;
+    border: 0;
     border-radius: 10px;
     padding-bottom: 5px;
     padding-top: 5px;
@@ -110,3 +117,6 @@ button {
     /* width: min-content; */
 }
 
+#history_turn_counter button {
+    cursor: pointer;
+}

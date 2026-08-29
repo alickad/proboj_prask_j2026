@@ -103,7 +103,8 @@ function loadGameData(data) {
     else {
         console.log(`Loaded succesfully!`);
     }
-    setupTurnHistory(GAME_TURNS);
+    document.getElementById("upload_div").style.display = 'none';
+    setupTurnReplay(GAME_TURNS);
 }
 // console.log(parseGameData(
 //     ['player1', 'player2', '0 0', 'KAMEN KAMEN']
@@ -127,7 +128,9 @@ function whoWonMatch(turn1, turn2) {
     };
     return WINNING_MOVES[turn1] === turn2 ? 1 : 2;
 }
-function setupTurnHistory(turns) {
+function setupTurnReplay(turns) {
+    document.getElementById("controls").style.display = 'block';
+    document.getElementById("replay_canvas").style.display = 'grid';
     const current_turn_result_element1 = document.getElementById("current_turn_result_text_p1");
     const current_turn_result_element2 = document.getElementById("current_turn_result_text_p2");
     CURRENT_TURN_RESULT_TEXT_ELEMENTS = [
@@ -144,8 +147,9 @@ function setupTurnHistory(turns) {
     let history_p1 = document.getElementById("p1_history");
     let history_p2 = document.getElementById("p2_history");
     turns.forEach((turn, index) => {
-        const turn_number_element = document.createElement('p');
+        const turn_number_element = document.createElement('button');
         turn_number_element.innerText = index.toString();
+        turn_number_element.onclick = () => { changeTurn(index); };
         turn_counter?.appendChild(turn_number_element);
         TURN_NUMBER_ELEMENTS.push(turn_number_element);
         const winner = whoWonMatch(turn[0], turn[1]);
@@ -290,7 +294,7 @@ function animateTurn(turn) {
         if (!element) {
             return;
         }
-        element.textContent = "";
+        element.textContent = "✊";
         element.style.backgroundColor = "#000000";
     });
     _focusTurnInHistory(turn);
