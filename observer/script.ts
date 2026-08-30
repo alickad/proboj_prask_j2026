@@ -44,7 +44,7 @@ function validateTurn(turn: string){
     return VALID_TURNS.indexOf(turn) != -1;
 }
 
-function parseGameData(data: string[]){
+function _parseGameData(data: string[]){
     console.log(`Parsing game data...`)
     // console.log(`DEBUG LOG!`)
     if (!Array.isArray(data)){
@@ -104,7 +104,7 @@ function parseGameData(data: string[]){
 }
 
 function loadGameData(data: string[]){
-    const result: (boolean|null) = parseGameData(data);
+    const result: (boolean|null) = _parseGameData(data);
     // console.log(`Parsedata returned: ${result}`)
     if (result == null){
         alert(`Error parsing game data: ${ERROR_MSG}.`)
@@ -194,17 +194,6 @@ function setupTurnReplay(turns: string[][]){
         }
     )
     changeTurn(0);
-}
-
-function game_controls_action(action: string){
-    switch (action) {
-        case 'pause':
-            
-            break;
-    
-        default:
-            break;
-    }
 }
 
 function isScrolledIntoView(elem: HTMLElement): boolean {

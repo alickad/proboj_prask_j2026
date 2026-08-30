@@ -55,7 +55,9 @@ button {
 
 #current_turn_result_text_p1, #current_turn_result_text_p2 {
     font-size: 100%;
+    font-weight: bold;
 }
+
 #current_turn_p1_text, #current_turn_p2_text {
     margin-bottom: 3vh;
     font-size: 500%;
