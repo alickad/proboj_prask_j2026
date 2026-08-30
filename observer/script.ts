@@ -11,6 +11,11 @@ let PLAYER_NAMES: (string|null)[] = [null, null];
 let GAME_TURNS: string[][] = [];
 let FINAL_SCORE: (string|null)[] = [null, null]
 let ERROR_MSG = '';
+let ANIMATION_IS_PAUSED = true;
+let ANIMATION_SPEED = 1;
+let CURRENT_ANIMATION_UUID: string|null = null;
+const WAIT_BETWEEN_TURN_ANIMATION = 2000;
+// let ANIMATING_TOWARDS_TURN: number|null = null;
 const WINNER_COLOR = '#00ff00'
 const LOSER_COLOR = '#ff0000'
 const DRAW_COLOR = '#ffb700'
@@ -21,7 +26,7 @@ function init() {
     fileSelector.addEventListener('change', (event)=>{
         console.log('Detected file, upload, running handle_upload()')
         // @ts-ignore
-        handle_upload(event?.target?.files[0]);
+        handle_upload(event.target?.files[0]);
     })
 }
 
@@ -137,6 +142,11 @@ function whoWonMatch(turn1: string, turn2: string) {
 function setupTurnReplay(turns: string[][]){
     document.getElementById("controls")!.style.display = 'block';
     document.getElementById("replay_canvas")!.style.display = 'grid';
+    document.getElementById("replay_speed_input")!.addEventListener('input', (event)=>{
+        // @ts-ignore
+        setReplaySpeed(event.target.value);
+    })
+    setReplaySpeed(1);
 
     const current_turn_result_element1 = document.getElementById("current_turn_result_text_p1");
     const current_turn_result_element2 = document.getElementById("current_turn_result_text_p2");
@@ -241,6 +251,9 @@ function changeTurn(turn: number) {
     console.log(`FOCUS TURN ${turn}`);
     _unfocusTurnInHistory(CURRENT_TURN);
     _focusTurnInHistory(turn);
+    // if (ANIMATING_TOWARDS_TURN) {
+    //     _unfocusTurnInHistory(ANIMATING_TOWARDS_TURN);
+    // }
 
     if (turn < 0 || turn >= TURN_NUMBER_ELEMENTS.length) { 
         return; 
@@ -274,11 +287,21 @@ function changeTurn(turn: number) {
     _focusScrollOnTurn(turn);    
 }
 
+function cancelCurrentAnimation(pause_replay?:boolean) {
+    if (pause_replay) {
+        document.getElementById("pause_button")!.textContent = "Resume";
+        ANIMATION_IS_PAUSED = true;
+    }
+    changeTurn(CURRENT_TURN);
+    CURRENT_ANIMATION_UUID = null;
+}
+
 function nextTurn(){
     console.log(`FOCUS_NEXT`);
     if (CURRENT_TURN >= TURN_NUMBER_ELEMENTS.length-1) {
         return;
     }
+    cancelCurrentAnimation(true);
     changeTurn(CURRENT_TURN + 1);
 }
 
@@ -287,6 +310,7 @@ function previousTurn(){
     if (CURRENT_TURN <= 0) {
         return;
     }
+    cancelCurrentAnimation(true);
     changeTurn(CURRENT_TURN - 1);
 }
 
@@ -294,7 +318,7 @@ function DEBUGisinview(){
     console.log(`Is in view? ${isScrolledIntoView(TURN_NUMBER_ELEMENTS[17])} ${TURN_NUMBER_ELEMENTS[17].innerText}`);
 }
 
-function animateTurn(turn?: number) {
+function animateTurn(turn?: number, countDownTickTime?: number) {
     function setBothTurnResultElementsTo(text: string) {
         CURRENT_TURN_RESULT_TEXT_ELEMENTS.forEach(
             (element) => {
@@ -305,9 +329,14 @@ function animateTurn(turn?: number) {
     }
     if (!turn) { turn = CURRENT_TURN + 1}
     if (turn < 0 || turn >= GAME_TURNS.length) { return; }
-
+    if (!countDownTickTime) {countDownTickTime = 1000}
+    
     if (!CURRENT_TURN_ELEMENTS[0] || !CURRENT_TURN_ELEMENTS[1]) { console.error(`Current turn elements not loaded.`); return; }
     if (!CURRENT_TURN_RESULT_TEXT_ELEMENTS[0] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]) { console.error(`Current turn elements not loaded.`); return; }
+    
+    const uuid = crypto.randomUUID();
+    CURRENT_ANIMATION_UUID = uuid;
+    changeTurn(CURRENT_TURN); // Just in case an animation is already in progress
 
 
     CURRENT_TURN_ELEMENTS.forEach(
@@ -318,22 +347,75 @@ function animateTurn(turn?: number) {
         }
     )
 
-    _focusTurnInHistory(turn);
-    _unfocusTurnInHistory(CURRENT_TURN);
+    // _focusTurnInHistory(turn);
+    // ANIMATING_TOWARDS_TURN = turn;
+    // _unfocusTurnInHistory(CURRENT_TURN);
 
     // Countdown from 3 to 0
     for (let i = 0; i < 4; i++) {
         setTimeout(
-            () => setBothTurnResultElementsTo((3 - i).toString()),
-            i * 1000
+            (animation_uuid: string) => {
+                if (CURRENT_ANIMATION_UUID != animation_uuid) {console.log(`Changed turn before finishing animation, ignoring animation`); return;}
+                setBothTurnResultElementsTo((3 - i).toString())
+            },
+            i * countDownTickTime,
+            uuid
         )
     }
     setTimeout(
-        () => {
+        (expected_uuid: string) => {
+            if (CURRENT_ANIMATION_UUID != expected_uuid) {console.log(`Changed turn before finishing animation, ignoring animation`); return;}
             changeTurn(turn);
+            // ANIMATING_TOWARDS_TURN = null;
         },
-        3000
+        3 * countDownTickTime,
+        uuid
     )
     
 }
 
+function _animationNextTurn() {
+    if (ANIMATION_IS_PAUSED) { return; }
+    animateTurn(CURRENT_TURN+1, 1000 * ANIMATION_SPEED)
+    if (CURRENT_TURN + 1 >= GAME_TURNS.length) {
+        document.getElementById("pause_button")!.textContent = "Play";
+        return;
+    }
+    setTimeout(_animationNextTurn, (3000 + WAIT_BETWEEN_TURN_ANIMATION) * ANIMATION_SPEED)
+}
+
+function startAnimation() {
+    if (CURRENT_TURN + 1 >= GAME_TURNS.length) {
+        return;
+    }
+    document.getElementById("pause_button")!.textContent = "Pause";
+    ANIMATION_IS_PAUSED = false;
+    _animationNextTurn()
+}
+
+function pauseButtonPress(){
+    if (CURRENT_TURN + 1 >= GAME_TURNS.length && ANIMATION_IS_PAUSED) {
+        CURRENT_TURN = 0;
+        startAnimation();
+        return;
+    }
+    if (ANIMATION_IS_PAUSED){
+        startAnimation();
+    } else {
+        cancelCurrentAnimation(true);
+    }
+}
+
+function setReplaySpeed(speed: number) {
+    console.log(`changiong speed: ${speed}`)
+    if (speed < 0.1) { alert(`Replay speed ${speed} is too small. Only values >= 0.1 are allowed`)}
+    const round_decimal_places = 3
+    ANIMATION_SPEED = Math.round(speed * (10**round_decimal_places)) / 10**round_decimal_places;
+    // @ts-ignore
+    if (document.getElementById("replay_speed_input").value == speed.toString()) {
+        // This function is called on input => prevent recursive calls
+        return;
+    }
+    // @ts-ignore
+    document.getElementById("replay_speed_input").value = speed.toString();
+}

@@ -14,12 +14,18 @@
         <p><input id="upload_input" type="file" title="Upload game..."></p>
     </div>
     <div id="controls">
-        <button class="action_button">Slower</button>
-        <button class="action_button" onclick="previousTurn()">Previous</button>
-        <button class="action_button" id="pause_button" onclick="game_controls_action('pause')">Pause</button>
-        <button class="action_button" onclick="nextTurn()">Next</button>
-        <button class="action_button">Faster</button>
-        <button onclick="animateTurn()">DEBUG</button>
+        <p>
+            <button class="action_button" onclick="setReplaySpeed(ANIMATION_SPEED + 0.05)">Slower</button>
+            <button class="action_button" onclick="previousTurn()">Previous</button>
+            <button class="action_button" id="pause_button" onclick="pauseButtonPress()">Play</button>
+            <button class="action_button" onclick="nextTurn()">Next</button>
+            <button class="action_button" onclick="setReplaySpeed(ANIMATION_SPEED - 0.05)">Faster</button>
+            <button onclick="animateTurn()">DEBUG</button>
+        </p>
+        <p>
+            Replay speed:
+            <input type="number" name="replay_speed" id="replay_speed_input" step="0.05" min="0.1">
+        </p>
     </div>
     <div id="replay_canvas">
         <div id="replay_canvas_history">
