@@ -169,7 +169,7 @@ function setupTurnReplay(turns: string[][]){
         (turn, index) => {
             const turn_number_element = document.createElement('button');
             turn_number_element.innerText = index.toString();
-            turn_number_element.onclick = () => {changeTurn(index)};
+            turn_number_element.onclick = () => {cancelCurrentAnimation(true); changeTurn(index)};
             turn_counter?.appendChild(turn_number_element);
             TURN_NUMBER_ELEMENTS.push(turn_number_element);
 

@@ -43,7 +43,7 @@ function handle_upload(file) {
 function validateTurn(turn) {
     return VALID_TURNS.indexOf(turn) != -1;
 }
-function parseGameData(data) {
+function _parseGameData(data) {
     console.log(`Parsing game data...`);
     // console.log(`DEBUG LOG!`)
     if (!Array.isArray(data)) {
@@ -100,7 +100,7 @@ function parseGameData(data) {
     return true;
 }
 function loadGameData(data) {
-    const result = parseGameData(data);
+    const result = _parseGameData(data);
     // console.log(`Parsedata returned: ${result}`)
     if (result == null) {
         alert(`Error parsing game data: ${ERROR_MSG}.`);
@@ -159,7 +159,7 @@ function setupTurnReplay(turns) {
     turns.forEach((turn, index) => {
         const turn_number_element = document.createElement('button');
         turn_number_element.innerText = index.toString();
-        turn_number_element.onclick = () => { changeTurn(index); };
+        turn_number_element.onclick = () => { cancelCurrentAnimation(true); changeTurn(index); };
         turn_counter?.appendChild(turn_number_element);
         TURN_NUMBER_ELEMENTS.push(turn_number_element);
         const winner = whoWonMatch(turn[0], turn[1]);
@@ -180,14 +180,6 @@ function setupTurnReplay(turns) {
         TURN_PAIR_ELEMENTS.push([element1, element2]);
     });
     changeTurn(0);
-}
-function game_controls_action(action) {
-    switch (action) {
-        case 'pause':
-            break;
-        default:
-            break;
-    }
 }
 function isScrolledIntoView(elem) {
     const elemRect = elem.getBoundingClientRect();
