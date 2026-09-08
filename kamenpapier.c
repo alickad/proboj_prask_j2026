@@ -836,9 +836,10 @@ int run(int *memory, unsigned char *bytecode) {
 	}
 }
 
+const char HELP_MSG[] = "Usage: ./kamenpapier [flags] file(s)\nFlags:\n --help / -h: Print this message and exit\n\n -r <ROUNDS>: (default: 50) Number of rounds played (if one of players errors out or doesn't play a turn, the game will be ended early)\n\n -m: Manual mode: You will combat program, you need to provide one program file as an argument\n -p: Program mode (default): Two programs combat each other, you need to provide two program files as arguments\n\nFiles:\nIn manual mode,  provide one file\nIn program mode, provide two files";
 int main(int argc, char **argv) {
 	#ifdef DEBUG
-		printf("Running in debug mode.");
+		printf("Running in debug mode...\n\n");
 	#endif
 	FILE *file;
 	int memory[MEMORY_SIZE];
@@ -853,40 +854,138 @@ int main(int argc, char **argv) {
 
 	const char *play_names[3] = {"kamen", "papier", "noznice"};
 
-	if (argc != 2) {
-		printf("usage: kamenpapier <subor>\n");
+	int filename_arg_i = -1;
+	int filename2_arg_i = -1;
+	int rounds = 50;
+	char mode = '?';
+
+	for (int arg_i = 1; arg_i < argc; arg_i++){
+		if (argv[arg_i][0] == '-') {
+			// PARSE FLAGS
+			if (strcmp(argv[arg_i], "--help") == 0 || strcmp(argv[arg_i], "-h") == 0) {
+				printf(HELP_MSG);
+				return 0;
+			}
+			else if (strcmp(argv[arg_i], "-m") == 0) {mode = 'm';}
+			else if (strcmp(argv[arg_i], "-p") == 0) {mode = 'p';}
+			else if (strcmp(argv[arg_i], "-r") == 0) {
+				if (arg_i + 1 == argc) {
+					printf("Error: Flag -r is missing its value\n\n");
+					printf(HELP_MSG);
+					return 1;
+				}
+				rounds = atoi(argv[arg_i + 1]);
+				if (rounds <= 0) {
+					printf("Error: Flag -r got non-numeric value or value of 0, which is not allowed: `%s`\n\n", argv[arg_i+1]);
+					printf(HELP_MSG);
+					return 1;
+				}
+				arg_i++;
+				continue;
+			} else {
+				printf("Error: Unknown flag `%s`\n\n", argv[arg_i]);
+				printf(HELP_MSG);
+				return 1;
+			}
+
+		} else {
+			// PARSE ARGUMENTS
+			if (filename_arg_i == -1) {
+
+				filename_arg_i = arg_i;
+			} else if (filename2_arg_i == -1) {
+				filename2_arg_i = arg_i;
+			} else {
+				printf("Error: Too many arguments expected at most 2\n\n");
+				printf(HELP_MSG);
+				return 1;
+			}
+		}
 	}
-	file = fopen(argv[1], "r");
-	compile(file, memory, bytecode);
+	#ifdef DEBUG
+		if (mode == '?') printf("[DEBUG] No mode flag found, using default value of `p`\n");
+		else printf("[DEBUG] mode flag found: `%c`\n", mode);
+	#endif
+	if (mode == '?') mode = 'p';
 
 	#ifdef DEBUG
-		int i = 0;
-		while (bytecode[i] != INST_NULL) { i++; };
-		dump_bytecode(bytecode, i);
+		printf("[DEBUG] Starting with configuration:\n mode='%c'\n rounds=%d\n", mode, rounds);
 	#endif
 
-	printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukončenie hry.\n");
+	if (filename_arg_i == -1) {
+		printf("\nError: At least one argument required, got none\n\n");
+		printf(HELP_MSG);
+		return 1;
+	}
+	if (mode == 'p' && filename2_arg_i == -1) {
+		printf("\nError: Two arguments expected for mode 'program', got one\n\n");
+		printf(HELP_MSG);
+		return 1;
+	}
+	if (mode == 'm' && filename2_arg_i != -1) {
+		printf("\nError: One argument expected for mode 'manual', got two\n\n");
+		printf(HELP_MSG);
+		return 1;
+	}
 
-	/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
-	memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
-	while (scanf("%c", &play_char) > 0) {
+	if (mode == 'm') {
+
+		file = fopen(argv[filename_arg_i], "r");
+		compile(file, memory, bytecode);
+
 		#ifdef DEBUG
-			printf("Reading character '%i'\n", (int)play_char);
+			int i = 0;
+			while (bytecode[i] != INST_NULL) { i++; };
+			dump_bytecode(bytecode, i);
 		#endif
-		if (play_char == 'k') play = 0;
-		else if (play_char == 'p') play = 1;
-		else if (play_char == 'n') play = 2;
-		else if (play_char == '\n') continue;
-		else if (play_char == '!') { printf("User ended game.\n"); break; }
-		else { printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukoncenie hry.\n", play_char); continue; }
 
-		bot_play = run(memory, bytecode);
-		if (bot_play == -1){
-			printf("Bot nezahral tah, koniec hry.\n");
-			break;
+		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukončenie hry.\n");
+
+		/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
+		memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
+		int round_i;
+		for (round_i = 0; round_i < rounds; round_i++) {
+			if (!(scanf("%c", &play_char) > 0)) {break;}
+			#ifdef DEBUG
+				printf("Reading character '%i'\n", (int)play_char);
+			#endif
+
+			if (play_char == 'k') 
+				play = 0;
+			else if (play_char == 'p') 
+				play = 1;
+			else if (play_char == 'n') 
+				play = 2;
+			else if (play_char == '\n') {
+				round_i--; // Nepocitajme to ako tah
+				continue;
+			}
+			else if (play_char == '!') {
+				printf("User ended game.\n");
+				break;
+			}
+			else { 
+				printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukoncenie hry.\n", play_char); 
+				round_i--; // Nepocitajme to ako tah
+				continue; 
+			}
+
+			bot_play = run(memory, bytecode);
+			if (bot_play == -1){
+				printf("Bot nezahral tah, koniec hry.\n");
+				break;
+			}
+			printf("ty: %7s,  bot: %7s\n", play_names[play], play_names[bot_play]);
+			memory[ADDRESS_OPPONENTS_LAST_PLAY] = play;
 		}
-		printf("ty: %7s,  bot: %7s\n", play_names[play], play_names[bot_play]);
-		memory[ADDRESS_OPPONENTS_LAST_PLAY] = play;
+		if (round_i == rounds) printf("\nVsetky kola boli zahrate (%d), koniec", round_i);
+		else printf("\nHra bola ukoncena predcasne v kole %d", round_i);
+	} else if (mode == 'p') {
+		printf("Not implemented");
+		return 1;
+	} else {
+		printf("Unknown mode: `%c`", mode);
+		return 1;
 	}
 	return 0;
 }
