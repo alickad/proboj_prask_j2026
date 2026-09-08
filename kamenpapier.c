@@ -68,6 +68,9 @@
 	tu instrukciu, tak nevieme dopredu, ako daleko bude ten if koncit. */
 #define INST_JUMP_IF_ZERO_2  21
 
+/* NULL: defaultná hodnota bytecode bufferu, neicializovaná hodnota, keď ju prečítame program skončil */
+#define INST_NULL            255
+
 /* Kody aritmetickych operacii, co davame na stack.
 	Musia byt zoradene podla prednosti (napriklad `+` ma prednost pred `*`),
 	aby sa potom dali porovnavat.
@@ -743,6 +746,7 @@ int run(int *memory, unsigned char *bytecode) {
 		#endif
 		/* ------------------- */
 		switch (bytecode[i++]) {
+			case INST_NULL:           return -1; /* Error, nothing was returned and the program ended */
 			case INST_PLAY_ROCK:      return 0;
 			case INST_PLAY_PAPER:     return 1;
 			case INST_PLAY_SCISSORS:  return 2;
@@ -833,9 +837,15 @@ int run(int *memory, unsigned char *bytecode) {
 }
 
 int main(int argc, char **argv) {
+	#ifdef DEBUG
+		printf("Running in debug mode.");
+	#endif
 	FILE *file;
 	int memory[MEMORY_SIZE];
 	unsigned char bytecode[MAX_BYTECODE_LENGTH];
+
+	/* Nastaviť celé pole na inštrukciu NULL, aby sme náhodou nebežali hodnoty, ktoré tam boli pred alokáciou */
+	for (unsigned i = 0; i < MAX_BYTECODE_LENGTH; i++) {bytecode[i] = INST_NULL;}
 
 	int play;
 	char play_char;
@@ -849,20 +859,34 @@ int main(int argc, char **argv) {
 	file = fopen(argv[1], "r");
 	compile(file, memory, bytecode);
 
-	/*dump_bytecode(bytecode, length);*/
+	#ifdef DEBUG
+		int i = 0;
+		while (bytecode[i] != INST_NULL) { i++; };
+		dump_bytecode(bytecode, i);
+	#endif
 
-	printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n`.\n");
+	printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukončenie hry.\n");
 
 	/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
 	memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
 	while (scanf("%c", &play_char) > 0) {
+		#ifdef DEBUG
+			printf("Reading character '%i'\n", (int)play_char);
+		#endif
 		if (play_char == 'k') play = 0;
 		else if (play_char == 'p') play = 1;
 		else if (play_char == 'n') play = 2;
-		else continue;
+		else if (play_char == '\n') continue;
+		else if (play_char == '!') { printf("User ended game.\n"); break; }
+		else { printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukoncenie hry.\n", play_char); continue; }
 
 		bot_play = run(memory, bytecode);
+		if (bot_play == -1){
+			printf("Bot nezahral tah, koniec hry.\n");
+			break;
+		}
 		printf("ty: %7s,  bot: %7s\n", play_names[play], play_names[bot_play]);
 		memory[ADDRESS_OPPONENTS_LAST_PLAY] = play;
 	}
+	return 0;
 }
