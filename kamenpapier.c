@@ -68,8 +68,8 @@
 	tu instrukciu, tak nevieme dopredu, ako daleko bude ten if koncit. */
 #define INST_JUMP_IF_ZERO_2  21
 
-/* NULL: defaultná hodnota bytecode bufferu, neicializovaná hodnota, keď ju prečítame program skončil */
-#define INST_NULL            255
+/* NULL: defaultná hodnota bytecode bufferu, neicializovaná hodnota, keď ju prečítame vieme ze program skončil */
+#define INST_NULL            127
 
 /* Kody aritmetickych operacii, co davame na stack.
 	Musia byt zoradene podla prednosti (napriklad `+` ma prednost pred `*`),
@@ -94,6 +94,10 @@
 #define PRECEDENCE_ADD_SUBTRACT 1
 #define PRECEDENCE_MULTIPLY_DIVIDE 4
 
+#define TURN_ROCK 0
+#define TURN_PAPER 1
+#define TURN_SCISSORS 2
+#define TURN_ERROR 127
 
 typedef struct {
 	FILE *stream;
@@ -746,10 +750,10 @@ int run(int *memory, unsigned char *bytecode) {
 		#endif
 		/* ------------------- */
 		switch (bytecode[i++]) {
-			case INST_NULL:           return -1; /* Error, nothing was returned and the program ended */
-			case INST_PLAY_ROCK:      return 0;
-			case INST_PLAY_PAPER:     return 1;
-			case INST_PLAY_SCISSORS:  return 2;
+			case INST_NULL:           return TURN_ERROR; /* Error, nothing was returned and the program ended */
+			case INST_PLAY_ROCK:      return TURN_ROCK;
+			case INST_PLAY_PAPER:     return TURN_PAPER;
+			case INST_PLAY_SCISSORS:  return TURN_SCISSORS;
 			case INST_PUSH:
 				stack[stack_length] = bytecode[i++];
 				stack_length++;
@@ -836,7 +840,102 @@ int run(int *memory, unsigned char *bytecode) {
 	}
 }
 
-const char HELP_MSG[] = "Usage: ./kamenpapier [flags] file(s)\nFlags:\n --help / -h: Print this message and exit\n\n -r <ROUNDS>: (default: 50) Number of rounds played (if one of players errors out or doesn't play a turn, the game will be ended early)\n\n -m: Manual mode: You will combat program, you need to provide one program file as an argument\n -p: Program mode (default): Two programs combat each other, you need to provide two program files as arguments\n\nFiles:\nIn manual mode,  provide one file\nIn program mode, provide two files";
+char get_scores_from_game(int roundc, char* round_data, int scores[2]) {
+	int score1 = 0;
+	int score2 = 0;
+	for (int round_i = 0; round_i < roundc; round_i++) {
+		if (round_data[round_i * 2] == round_data[round_i * 2 + 1]) {
+			if (round_data[round_i * 2] == TURN_ERROR) {
+				score1 = -1;
+				score2 = -1;
+				break;
+			}
+			continue;
+		}
+		else if (round_data[round_i * 2] == TURN_ERROR) {
+			score1 = -1;
+			break;
+		}
+		else if (round_data[round_i * 2 + 1] == TURN_ERROR) {
+			score2 = -1;
+			break;
+		}
+		else if (round_data[round_i * 2] == TURN_SCISSORS && round_data[round_i * 2 + 1] == TURN_PAPER) score1++;
+		else if (round_data[round_i * 2] == TURN_SCISSORS && round_data[round_i * 2 + 1] == TURN_ROCK) score2++;
+		else if (round_data[round_i * 2] == TURN_PAPER && round_data[round_i * 2 + 1] == TURN_ROCK) score1++;
+		else if (round_data[round_i * 2] == TURN_PAPER && round_data[round_i * 2 + 1] == TURN_SCISSORS) score2++;
+		else if (round_data[round_i * 2] == TURN_ROCK && round_data[round_i * 2 + 1] == TURN_PAPER) score2++;
+		else if (round_data[round_i * 2] == TURN_ROCK && round_data[round_i * 2 + 1] == TURN_SCISSORS) score1++;
+		else {
+			printf("Unexpected error: uknown turn combination: `%c` and `%c`\n", round_data[round_i * 2], round_data[round_i * 2 + 1]);
+			return -1;
+		}
+	}
+	scores[0] = score1;
+	scores[1] = score2;
+	return 0;
+}
+
+const char* get_turn_name(char turn) {
+	const char* TURN_ROCK_STR = "KAMEN";
+	const char* TURN_PAPER_STR = "PAPIER";
+	const char* TURN_SCISSORS_STR = "NOZNICE";
+	const char* TURN_ERROR_STR = "ERROR";
+
+	switch (turn) {
+		case (TURN_ROCK): return TURN_ROCK_STR;
+		case (TURN_PAPER): return TURN_PAPER_STR;
+		case (TURN_SCISSORS): return TURN_SCISSORS_STR;
+		case (TURN_ERROR): return TURN_ERROR_STR;
+		default: {
+			return NULL;
+		}
+	}
+}
+int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file) {
+	int scores[2];
+	get_scores_from_game(roundc, turn_data, scores);
+	FILE *file;
+	file = fopen(output_file, "w");
+	if (!file){
+		printf("Error: Failed to create file `%s`.\n", output_file);
+		return -1;
+	}
+	fprintf(file, "%s\n", name1);
+	fprintf(file, "%s\n", name2);
+	fprintf(file, "%i %i", scores[0], scores[1]);
+	for (int i = 0; i < roundc; i++){
+		const char* turn1 = get_turn_name(turn_data[i * 2]);
+		if (turn1 == NULL) {
+			printf("Error: save_game(): unknown turn %i: `%c` (ASCII: %i)", i, turn_data[i * 2], (int)turn_data[i * 2]);
+			return -2;
+		}
+		const char* turn2 = get_turn_name(turn_data[i * 2 + 1]);
+		if (turn2 == NULL){
+			printf("Error: save_game(): unknown turn %i: `%c` (ASCII: %i)", i, turn_data[i * 2], (int)turn_data[i * 2]);
+			return -2;
+		}
+		fprintf(file, "\n%s %s", turn1, turn2);
+	}
+	return 0;
+}
+
+const char HELP_MSG[] = "\nUsage: ./kamenpapier [flags] file(s)\n"
+						"Flags:\n"
+						" --help / -h: Print this message and exit\n\n"
+						" --output / -o: Output file name (.txt extension is reccomended), default: `kamenpapier_game_replay.txt`\n\n"
+						" -r <ROUNDS>: (default: 50) Number of rounds played (if one of players errors out or doesn't play a turn, the game will be ended early)\n"
+						" --names / -n: Provide names of players separated by space (default: player1 and player2).\n"
+						"               Order: In manual mode, the first name is of human and the second of program\n"
+						"                      In program mode, names belong to programs in same order as provided argument files\n\n"
+						" -m: Manual mode: You will combat program, you need to provide one program file as an argument\n"
+						" -p: Program mode (default): Two programs combat each other, you need to provide two program files as arguments\n\n"
+						"Files:\n"
+						"  In manual mode,  provide one file\n"
+						"  In program mode, provide two files\n\n"
+						"Example usage:\n"
+						"$ ./kamenpapier -m -r 10 -n human bot -o example_output.txt example.psc\n"
+						"$ ./kamenpapier -r 50 --names botA botB --output example_output.txt example.psc example2.psc";
 int main(int argc, char **argv) {
 	#ifdef DEBUG
 		printf("Running in debug mode...\n\n");
@@ -844,6 +943,7 @@ int main(int argc, char **argv) {
 	FILE *file;
 	int memory[MEMORY_SIZE];
 	unsigned char bytecode[MAX_BYTECODE_LENGTH];
+
 
 	/* Nastaviť celé pole na inštrukciu NULL, aby sme náhodou nebežali hodnoty, ktoré tam boli pred alokáciou */
 	for (unsigned i = 0; i < MAX_BYTECODE_LENGTH; i++) {bytecode[i] = INST_NULL;}
@@ -853,12 +953,19 @@ int main(int argc, char **argv) {
 	int bot_play;
 
 	const char *play_names[3] = {"kamen", "papier", "noznice"};
+	const char *DEFAULT_OUTPUT_FILE = "kamenpapier_game_replay.txt";
+	const char *DEFAULT_PLAYER1_NAME = "player1";
+	const char *DEFAULT_PLAYER2_NAME = "player2";
 
 	int filename_arg_i = -1;
 	int filename2_arg_i = -1;
-	int rounds = 50;
+	int player1_name_arg_i = -1;
+	int player2_name_arg_i = -1;
+	int output_file_arg_i = -1;
+	int roundc = 50;
 	char mode = '?';
 
+	/* Parse arguments and flags */
 	for (int arg_i = 1; arg_i < argc; arg_i++){
 		if (argv[arg_i][0] == '-') {
 			// PARSE FLAGS
@@ -874,12 +981,31 @@ int main(int argc, char **argv) {
 					printf(HELP_MSG);
 					return 1;
 				}
-				rounds = atoi(argv[arg_i + 1]);
-				if (rounds <= 0) {
+				roundc = atoi(argv[arg_i + 1]);
+				if (roundc <= 0) {
 					printf("Error: Flag -r got non-numeric value or value of 0, which is not allowed: `%s`\n\n", argv[arg_i+1]);
 					printf(HELP_MSG);
 					return 1;
 				}
+				arg_i++;
+				continue;
+			} else if (strcmp(argv[arg_i], "--names") == 0 || strcmp(argv[arg_i], "-n") == 0){
+				if (arg_i + 2 >= argc) {
+					printf("Error: Flag --names/-n requires two values, got one or none.\n");
+					printf(HELP_MSG);
+					return 1;
+				}
+				player1_name_arg_i = arg_i + 1;
+				player2_name_arg_i = arg_i + 2;
+				arg_i += 2;
+				continue;
+			} else if (strcmp(argv[arg_i], "--output") == 0 || strcmp(argv[arg_i], "-o") == 0) {
+				if (arg_i + 1 == argc) {
+					printf("Error: Flag --output / -o is missing its value\n\n");
+					printf(HELP_MSG);
+					return 1;
+				}
+				output_file_arg_i = arg_i + 1;
 				arg_i++;
 				continue;
 			} else {
@@ -887,7 +1013,7 @@ int main(int argc, char **argv) {
 				printf(HELP_MSG);
 				return 1;
 			}
-
+			
 		} else {
 			// PARSE ARGUMENTS
 			if (filename_arg_i == -1) {
@@ -902,6 +1028,7 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+	/* Handle invalid arguments */
 	#ifdef DEBUG
 		if (mode == '?') printf("[DEBUG] No mode flag found, using default value of `p`\n");
 		else printf("[DEBUG] mode flag found: `%c`\n", mode);
@@ -909,7 +1036,7 @@ int main(int argc, char **argv) {
 	if (mode == '?') mode = 'p';
 
 	#ifdef DEBUG
-		printf("[DEBUG] Starting with configuration:\n mode='%c'\n rounds=%d\n", mode, rounds);
+		printf("[DEBUG] Starting with configuration:\n mode='%c'\n rounds=%d\n", mode, roundc);
 	#endif
 
 	if (filename_arg_i == -1) {
@@ -927,6 +1054,19 @@ int main(int argc, char **argv) {
 		printf(HELP_MSG);
 		return 1;
 	}
+	const char* output_file = output_file_arg_i == -1 ? DEFAULT_OUTPUT_FILE : argv[output_file_arg_i];
+	const char* player1_name = player1_name_arg_i == -1 ? DEFAULT_PLAYER1_NAME : argv[player1_name_arg_i];
+	const char* player2_name = player2_name_arg_i == -1 ? DEFAULT_PLAYER2_NAME : argv[player2_name_arg_i];
+
+
+
+
+
+	char* turn_data = malloc(2 * roundc * sizeof(char));
+	if (turn_data == NULL) {
+		printf("Failed to allocate memory for player turns (%i bytes), exiting.", 2 * roundc);
+		return 1;
+	}
 
 	if (mode == 'm') {
 
@@ -939,23 +1079,26 @@ int main(int argc, char **argv) {
 			dump_bytecode(bytecode, i);
 		#endif
 
-		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukončenie hry.\n");
+		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu, 'e' pre vzdanie sa alebo `!` pre ukončenie hry.\n");
 
 		/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
 		memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
 		int round_i;
-		for (round_i = 0; round_i < rounds; round_i++) {
+		for (round_i = 0; round_i < roundc; round_i++) {
 			if (!(scanf("%c", &play_char) > 0)) {break;}
 			#ifdef DEBUG
 				printf("Reading character '%i'\n", (int)play_char);
 			#endif
 
 			if (play_char == 'k') 
-				play = 0;
+				play = TURN_ROCK;
 			else if (play_char == 'p') 
-				play = 1;
+				play = TURN_PAPER;
 			else if (play_char == 'n') 
-				play = 2;
+				play = TURN_SCISSORS;
+			else if (play_char == 'e') {
+				play = TURN_ERROR;
+			}
 			else if (play_char == '\n') {
 				round_i--; // Nepocitajme to ako tah
 				continue;
@@ -965,7 +1108,7 @@ int main(int argc, char **argv) {
 				break;
 			}
 			else { 
-				printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu alebo `!` pre ukoncenie hry.\n", play_char); 
+				printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu, 'e' pre vzdanie sa alebo `!` pre ukoncenie hry.\n", play_char); 
 				round_i--; // Nepocitajme to ako tah
 				continue; 
 			}
@@ -977,15 +1120,35 @@ int main(int argc, char **argv) {
 			}
 			printf("ty: %7s,  bot: %7s\n", play_names[play], play_names[bot_play]);
 			memory[ADDRESS_OPPONENTS_LAST_PLAY] = play;
+			turn_data[round_i * 2] = play;
+			turn_data[round_i * 2 + 1] = bot_play;
+
+			if (play == TURN_ERROR || bot_play == TURN_ERROR) 
+				break;
 		}
-		if (round_i == rounds) printf("\nVsetky kola boli zahrate (%d), koniec", round_i);
-		else printf("\nHra bola ukoncena predcasne v kole %d", round_i);
+		if (round_i == roundc) printf("\nVsetky kola boli zahrate (%d), koniec\n", round_i);
+		else printf("\nHra bola ukoncena predcasne v kole %d\n", round_i);
+
+		printf("Saving game to `%s`...", output_file);
+		/* Poznamka: Pouzivame round_i namiesto roundc, lebo ked ukoncime hru predcasne mame len round_i odohranych kol */
+		save_gamedata(player1_name, player2_name, round_i, turn_data, output_file);
+		
+		#ifdef DEBUG
+			printf("\n GAME LOG:\n");
+			for (int i = 0; i < round_i; i++) {
+				printf("TURN %i: human: %s, bot: %s\n", i, play_names[turn_data[i*2]], play_names[turn_data[i*2+1]]);
+			}
+		#endif
+
 	} else if (mode == 'p') {
 		printf("Not implemented");
+		free(turn_data);
 		return 1;
 	} else {
 		printf("Unknown mode: `%c`", mode);
+		free(turn_data);
 		return 1;
 	}
+	free(turn_data);
 	return 0;
 }
