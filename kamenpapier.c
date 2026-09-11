@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+
 
 #define MAX_BYTECODE_LENGTH 16384
 /* premenne v programe + "systemova" premenna, to co hrac zahral */
@@ -12,6 +14,10 @@
 #define MAX_VARIABLE_LENGTH 64
 #define STACK_SIZE 64
 #define MAX_NESTED_IFS 16
+
+/* najdlhsia dlzka riadku pri ktorej sa zobrazuje error, ktory vypise riadok a ukaze na chybu */
+/*                                                                                      ^^^^^ */
+#define MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP 128
 
 /* Kolko miesta potrebujeme na nazvy vsetkych premennych,
 	teda MAX_VARIABLE_COUNT * MAX_VARIABLE_LENGTH */
@@ -99,10 +105,63 @@
 #define TURN_SCISSORS 2
 #define TURN_ERROR 127
 
-typedef struct {
+/* Vyzera to strasne divne, read more: https://stackoverflow.com/questions/62957620/function-pointer-in-struct-taking-the-struct-as-argument-in-c */
+typedef struct ProgramReader ProgramReader;
+struct ProgramReader {
 	FILE *stream;
 	int line_number;
-} ProgramReader;
+	int prev_line_character_number;
+	int character_number;
+	// char current_line_chars[MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP];
+	// int current_line_chars_length;
+	// char (*fgetc)(ProgramReader*);
+	// int (*ungetc)(char, ProgramReader*);
+};
+
+char ProgramReader_fgetc(ProgramReader* reader) {
+	char c = fgetc(reader->stream);
+	reader->character_number++;
+	// if (c == EOF) return EOF;
+	if (c == '\n') {
+		reader->line_number++;
+		reader->prev_line_character_number = reader->character_number;
+		reader->character_number = 1;
+		// reader->current_line_chars_length = 0;
+
+	}
+	//} else {
+		// if (reader->current_line_chars_length >= MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP) {
+		// 	reader->current_line_chars_length = -1;
+		// } else if (reader->current_line_chars_length < 0) {
+		// 	// reading into current_line_chars already failed, do nothing (in future maybe keep track of the lenght and if we ungetc enugh, maybe it could be shorter than MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP)
+		// } else {
+		// 	reader->current_line_chars[reader->current_line_chars_length] = c;
+			// reader->current_line_chars_length++;
+		// }
+	// }
+	return c;
+}
+
+int ProgramReader_ungetc(char c, ProgramReader* reader) {
+	int result = ungetc(c, reader->stream);
+	if (result == EOF) return EOF;
+	if (c == '\n') {
+		reader->line_number--;
+		reader->character_number = reader->prev_line_character_number;
+		// reader->current_line_chars_length = -2;
+	} else {
+		reader->character_number--;
+		// reader->current_line_chars_length--;
+	}
+	return result;
+}
+
+void ProgramReader_move_discardchars(ProgramReader* reader, long offset) {
+	// fseek(reader->stream, offset, SEEK_CUR);
+	for (int i = 0; i < offset; i++) {
+		ProgramReader_fgetc(reader);
+	}
+}
 
 typedef struct {
 	int length;
@@ -116,14 +175,15 @@ typedef struct {
 
 #define IS_WHITESPACE(ch) ((ch) == ' ' || (ch) == '\t' || (ch) == '\r')
 
+
 /* Ako whitespace sa nerataju nove riadky, tie sa riesia zvlast */
 void read_whitespace(ProgramReader *reader) {
 	int c;
 	do {
-		c = fgetc(reader->stream);
+		c = ProgramReader_fgetc(reader);
 		if (c == EOF) return;
 	} while (IS_WHITESPACE(c));
-	ungetc(c, reader->stream);
+	ProgramReader_ungetc(c, reader);
 }
 
 /* Nacita zo vstupu slovo, ktore zacina na pismeno a pokracuje
@@ -137,7 +197,7 @@ int read_word(ProgramReader *reader, char *dest) {
 	int i;
 	int c;
 	success = 1;
-	c = fgetc(reader->stream);
+	c = ProgramReader_fgetc(reader);
 	if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) {
 		success = 0;
 		goto end;
@@ -145,14 +205,16 @@ int read_word(ProgramReader *reader, char *dest) {
 	for (i = 0; i < MAX_VARIABLE_LENGTH; i++) {
 		*dest = c;
 		dest++;
-		c = fgetc(reader->stream);
+		c = ProgramReader_fgetc(reader);
 		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) goto end;
 	}
 	/* Ak sme sa dostali sem, tak mame na vstupe slovo, co je moc dlhe */
 	/* TODO: compile error: moc dlhe slovo */
 	/* Precitali sme znak, ktory uz nie je sucast slova, alebo sme na konci vstupu */
 	end:
-	if (c != EOF) ungetc(c, reader->stream);
+	if (c != EOF) {
+		ProgramReader_ungetc(c, reader);
+	}
 	*dest = '\0';
 	read_whitespace(reader);
 	return success;
@@ -216,13 +278,13 @@ int read_keyword(ProgramReader *reader, char *keyword) {
 	Ako kazda funkcia na citanie vstupu, ak je uspesna, tak precita aj nasledujuci whitespace. */
 int read_char(ProgramReader *reader, char target) {
 	int c;
-	c = fgetc(reader->stream);
+	c = ProgramReader_fgetc(reader);
 	if (c == EOF) return 0;
 	if (c == target) {
 		read_whitespace(reader);
 		return 1;
 	}
-	ungetc(c, reader->stream);
+	ProgramReader_ungetc(c,reader);
 	return 0;
 }
 
@@ -230,19 +292,27 @@ int read_keyword(ProgramReader *reader, char *keyword) {
 	int i;
 	char c;
 	for (i = 0; keyword[i] != '\0'; i++) {
-		c = fgetc(reader->stream);
+		c = ProgramReader_fgetc(reader);
 		if (c != keyword[i]) {
-			if (c != EOF) ungetc(c, reader->stream);
-			for (i--; i >= 0; i--) ungetc(keyword[i], reader->stream);
+			if (c != EOF) {
+				ProgramReader_ungetc(c, reader);
+			};
+			for (i--; i >= 0; i--) {
+				ProgramReader_ungetc(keyword[i], reader);
+			};
 			return 0;
 		}
 	}
 	/* Ak sa cele slovo zhoduje s keyword, este skontrolujeme,
 		ci nahodou to slovo nepokracuje dalej, kedy by sa to neratalo */
-	c = fgetc(reader->stream);
-	if (c != EOF) ungetc(c, reader->stream);
+	c = ProgramReader_fgetc(reader);
+	if (c != EOF) {
+		ProgramReader_ungetc(c, reader);
+	}
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-		for (i--; i >= 0; i--) ungetc(keyword[i], reader->stream);
+		for (i--; i >= 0; i--) {
+			ProgramReader_ungetc(keyword[i], reader);
+		};
 		return 0;
 	}
 	read_whitespace(reader);
@@ -261,31 +331,48 @@ int read_new_line(ProgramReader *reader) {
 	success = 0;
 	read_whitespace(reader);
 	while (1) {
-		c = fgetc(reader->stream);
+		c = ProgramReader_fgetc(reader);
 		/* ak vidime komentar, tak citame az do konca riadku */
 		if (c == '#') {
 			do {
-				c = fgetc(reader->stream);
+				c = ProgramReader_fgetc(reader);
 			} while (c != '\n' && c != EOF);
 			success = 1;
 		}
 		/* ak sme naposledy precitali novy riadok, tak si pamatame ze ho mame */
 		if (c == '\n') {
 			success = 1;
-			reader->line_number++;
 			read_whitespace(reader);
 		}
 		/* ak tam je iny znak alebo koniec vstupu, tak skoncime */
 		else {
-			if (c != EOF) ungetc(c, reader->stream);
+			if (c != EOF) {
+				ProgramReader_ungetc(c, reader);
+			};
 			return success || c == EOF;
 		}
 	}
 }
 
 /* TODO: pridat tam aj nazov programu */
-void compile_error(ProgramReader *reader, char *message) {
-	printf("chyba pri citani programu, riadok %d: %s\n", reader->line_number, message);
+void compile_error(ProgramReader *reader, char *message, bool show_help_message) {
+	printf("Chyba pri kompilacii, riadok %d, znak %d: %s\n", reader->line_number, reader->character_number, message);
+	if (show_help_message) {
+		rewind(reader->stream);
+		char c = 'a';
+		int curr_line = 1;
+		while (c != EOF && curr_line < reader->line_number) {
+			if (c == '\n') curr_line++;
+			c = fgetc(reader->stream);
+		}
+		while (c != '\n' && c != EOF) {
+			printf("%c", c);
+			c = fgetc(reader->stream);
+		}
+		printf("\n");
+		for (int i = 0; i < reader->character_number-3; i++) printf(" ");
+		printf("^\n");
+	}
 	exit(EXIT_FAILURE);
 }
 
@@ -299,7 +386,7 @@ int read_number(ProgramReader *reader, int *dest) {
 	int success;
 	char c;
 	success = 1;
-	c = fgetc(reader->stream);
+	c = ProgramReader_fgetc(reader);
 	if (c < '0' || c > '9') {
 		success = 0;
 		*dest = -1;
@@ -309,10 +396,10 @@ int read_number(ProgramReader *reader, int *dest) {
 	do {
 		*dest *= 10;
 		*dest += c - '0';
-		c = fgetc(reader->stream);
+		c = ProgramReader_fgetc(reader);
 	} while (c >= '0' && c <= '9');
 	end:
-	if (c != EOF) ungetc(c, reader->stream);
+	if (c != EOF) ProgramReader_ungetc(c, reader);
 	read_whitespace(reader);
 	return success;
 }
@@ -328,7 +415,10 @@ int variable_id_by_name(ProgramReader *reader, char *variable_names, char *name)
 	for (i = 0; i < MAX_VARIABLE_COUNT; i++) {
 		if (strcmp(&variable_names[i * MAX_VARIABLE_LENGTH], name) == 0) return i;
 	}
-	compile_error(reader, "neznamy nazov premennej");
+	#ifdef DEBUG
+		printf("Unknown variable name: %s\n", name);
+	#endif
+	compile_error(reader, "neznamy nazov premennej", true);
 }
 
 /* TODO: pocitat si kolko by sme na to potrebovali stack spaceu pocas runtimeu,
@@ -420,7 +510,7 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 		write_instruction(writer, INST_LOAD);
 		write_instruction(writer, variable_id);
 	}
-	else compile_error(reader, "mala by nasledovat hodnota, teda cislo, premenna alebo vyraz v zatvorke");
+	else compile_error(reader, "mala by nasledovat hodnota, teda cislo, premenna alebo vyraz v zatvorke", true);
 
 	/* Tu sa nachadzame po hodnote, teda tu mozu byt konce zatvoriek
 		alebo operacie. */
@@ -433,7 +523,7 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 				ako `nie (a < b alebo b < (c + d))`, tak ta posledna zatvorka patri
 				k tomu `nie (...)`, a nie k `(c + d)`. Ak je ta zatvorka naozaj unmatched,
 				tak si to poriesi ten kod ktory cita vstup po nej. */
-			ungetc(')', reader->stream);
+			ProgramReader_ungetc(')', reader);
 			goto end;
 		}
 		else {
@@ -472,7 +562,7 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 	goto before_value;
 
 	end:
-	if (open_bracket_count > 0) compile_error(reader, "nezatvorena zatvorka");
+	if (open_bracket_count > 0) compile_error(reader, "nezatvorena zatvorka", true);
 	operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_ADD_SUBTRACT);
 }
 
@@ -501,7 +591,7 @@ void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variab
 		if (read_keyword(reader, "kamen")) write_instruction(writer, 0);
 		else if (read_keyword(reader, "papier")) write_instruction(writer, 1);
 		else if (read_keyword(reader, "noznice")) write_instruction(writer, 2);
-		else compile_error(reader, "treba zahrat kamen, papier alebo noznice");
+		else compile_error(reader, "treba zahrat kamen, papier alebo noznice", true);
 		write_instruction(writer, INST_EQUAL);
 	}
 	else {
@@ -520,7 +610,11 @@ void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variab
 			read_char(reader, '='); // Just in case ze niekto pouziva `==` namiesto `=`
 			comparison = INST_EQUAL;
 		}
-		else compile_error(reader, "tu by malo byt porovnanie, teda < <= > alebo >=");
+		else {
+			/* posunut momentalny znak tak aby v chybovej hlaske ukazoval na porovnavac; momentalne nefunkcne pre `ak (1 -- 1)`*/
+			// ProgramReader_move_discardchars(reader, 2);
+			compile_error(reader, "tu by malo byt porovnanie, teda < <= > alebo >=", true);
+		};
 		parse_expression(reader, writer, variable_names);
 		write_instruction(writer, comparison);
 	}
@@ -528,7 +622,7 @@ void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variab
 	/* Tu moze byt koniec zatvorky alebo operacia alebo koniec */
 	after_value:
 	if (read_char(reader, ')')) {
-		if (open_bracket_count == 0) compile_error(reader, "navyse zatvarajuca zatvorka");
+		if (open_bracket_count == 0) compile_error(reader, "navyse zatvarajuca zatvorka", true);
 		operator_stack_pop_until(&operator_stack, writer, OP_OR);
 		operator_stack.top--;
 		open_bracket_count--;
@@ -553,7 +647,7 @@ void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variab
 	goto before_value;
 
 	end:
-	if (open_bracket_count > 0) compile_error(reader, "nezatvorena zatvorka");
+	if (open_bracket_count > 0) compile_error(reader, "nezatvorena zatvorka", true);
 	operator_stack_pop_until(&operator_stack, writer, OP_OR);
 }
 
@@ -575,6 +669,8 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 
 	reader.stream = stream;
 	reader.line_number = 1;
+	reader.character_number = 1;
+	// reader.current_line_chars_length = 0;
 	writer.buffer = bytecode;
 	writer.length = 0;
 
@@ -587,7 +683,7 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 	/* sekcia na zaciatku: nastavovanie premennych */
 	while (!read_keyword(&reader, "program:")) {
 		if (!read_keyword(&reader, "nech")) {
-			compile_error(&reader, "v sekcii init musia vsetky riadky zacinat klucovym slovom 'nech'");
+			compile_error(&reader, "v sekcii init musia vsetky riadky zacinat klucovym slovom 'nech'", true);
 		}
 		int i; /* loop counter */
 		char name[MAX_VARIABLE_LENGTH]; /* nazov premennej */
@@ -596,7 +692,7 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 		/* TODO: skontrolovat ci mame este miesto na premennu */
 		/* nazov premennej */
 		if (!read_word(&reader, name))
-			compile_error(&reader, "nazov premennej musi zacinat pismenom");
+			compile_error(&reader, "nazov premennej musi zacinat pismenom", true);
 		/* TODO: ak sme nenacitali slovo (teda name je prazdny string),
 			tak chceme vyhlasit chybu */
 		/* skontrolujeme, ci premenna nema rovnaky nazov ako nejaka predosla */
@@ -609,16 +705,16 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 			na konci ho zvacsime o 1 */
 		strcpy(&variable_names[variable_count * MAX_VARIABLE_LENGTH], name);
 		if (!read_char(&reader, '='))
-			compile_error(&reader, "za premennou musi byt =");
+			compile_error(&reader, "za premennou musi byt =", true);
 		if (!read_number(&reader, &value))
-			compile_error(&reader, "premenna musi byt nastavena na nejake cislo");
+			compile_error(&reader, "premenna musi byt nastavena na nejake cislo", true);
 		memory[variable_count] = value;
 		variable_count++;
 		if (!read_new_line(&reader))
-			compile_error(&reader, "za hodnotou premennej musi byt koniec riadku");
+			compile_error(&reader, "za hodnotou premennej musi byt koniec riadku", true);
 	}
 	if (!read_new_line(&reader))
-		compile_error(&reader, "za direktivou 'program:' musi nasledovat novy riadok");
+		compile_error(&reader, "za direktivou 'program:' musi nasledovat novy riadok", true);
 
 	while (!feof(reader.stream)) {
 		/* TODO: mozno sa tu chceme pozriet, ci neni nejaky ferror,
@@ -631,11 +727,11 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 				write_instruction(&writer, INST_PLAY_PAPER);
 			else if (read_keyword(&reader, "noznice"))
 				write_instruction(&writer, INST_PLAY_SCISSORS);
-			else compile_error(&reader, "treba zahrat kamen, papier alebo noznice");
+			else compile_error(&reader, "treba zahrat kamen, papier alebo noznice", true);
 		}
 		else if (read_keyword(&reader, "ak")) {
 			if (if_stack_length == MAX_NESTED_IFS)
-				compile_error(&reader, "prilis vela vnorenych podmienok");
+				compile_error(&reader, "prilis vela vnorenych podmienok", true);
 			parse_condition(&reader, &writer, variable_names);
 			write_instruction(&writer, INST_JUMP_IF_ZERO_2);
 			/* dalsie dva byty su ze kam skocime ak if neplati,
@@ -661,15 +757,15 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 			read_word(&reader, lhs_name);
 			lhs_id = variable_id_by_name(&reader, variable_names, lhs_name);
 			if (!read_char(&reader, '='))
-				compile_error(&reader, "po premennej musi byt =");
+				compile_error(&reader, "po premennej musi byt =", true);
 			parse_expression(&reader, &writer, variable_names);
 			write_instruction(&writer, INST_STORE);
 			write_instruction(&writer, lhs_id);
 		}
 		if (!read_new_line(&reader))
-			compile_error(&reader, "na konci prikazu ma byt koniec riadku");
+			compile_error(&reader, "na konci prikazu ma byt koniec riadku", true);
 	}
-	if (if_stack_length > 0) compile_error(&reader, "k nejakemu `ak` chyba `koniec`");
+	if (if_stack_length > 0) compile_error(&reader, "k nejakemu `ak` chyba `koniec`", false);
 	return writer.length;
 }
 
@@ -946,7 +1042,8 @@ int main(int argc, char **argv) {
 
 
 	/* Nastaviť celé pole na inštrukciu NULL, aby sme náhodou nebežali hodnoty, ktoré tam boli pred alokáciou */
-	for (unsigned i = 0; i < MAX_BYTECODE_LENGTH; i++) {bytecode[i] = INST_NULL;}
+	memset(bytecode, INST_NULL, MAX_BYTECODE_LENGTH);
+	// for (unsigned i = 0; i < MAX_BYTECODE_LENGTH; i++) {bytecode[i] = INST_NULL;}
 
 	int play;
 	char play_char;
@@ -1045,12 +1142,16 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	if (mode == 'p' && filename2_arg_i == -1) {
-		printf("\nError: Two arguments expected for mode 'program', got one\n\n");
+		printf("\n"
+			"Error: Two arguments expected for mode 'program', got one\n"
+			"(Hint: to enable manual mode (human vs program) add `-m` flag)\n\n");
 		printf(HELP_MSG);
 		return 1;
 	}
 	if (mode == 'm' && filename2_arg_i != -1) {
-		printf("\nError: One argument expected for mode 'manual', got two\n\n");
+		printf("\n"
+			"Error: One argument expected for mode 'manual', got two\n"
+			"(Hint: add another program file or remove `-m` flag to disable manual mode)\n\n");
 		printf(HELP_MSG);
 		return 1;
 	}
