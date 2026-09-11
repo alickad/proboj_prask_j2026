@@ -106,39 +106,22 @@
 #define TURN_ERROR 127
 
 /* Vyzera to strasne divne, read more: https://stackoverflow.com/questions/62957620/function-pointer-in-struct-taking-the-struct-as-argument-in-c */
-typedef struct ProgramReader ProgramReader;
-struct ProgramReader {
+typedef struct {
 	FILE *stream;
 	int line_number;
 	int prev_line_character_number;
 	int character_number;
-	// char current_line_chars[MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP];
-	// int current_line_chars_length;
-	// char (*fgetc)(ProgramReader*);
-	// int (*ungetc)(char, ProgramReader*);
-};
+} ProgramReader;
 
 char ProgramReader_fgetc(ProgramReader* reader) {
 	char c = fgetc(reader->stream);
 	reader->character_number++;
-	// if (c == EOF) return EOF;
 	if (c == '\n') {
 		reader->line_number++;
 		reader->prev_line_character_number = reader->character_number;
 		reader->character_number = 1;
-		// reader->current_line_chars_length = 0;
 
 	}
-	//} else {
-		// if (reader->current_line_chars_length >= MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP) {
-		// 	reader->current_line_chars_length = -1;
-		// } else if (reader->current_line_chars_length < 0) {
-		// 	// reading into current_line_chars already failed, do nothing (in future maybe keep track of the lenght and if we ungetc enugh, maybe it could be shorter than MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP)
-		// } else {
-		// 	reader->current_line_chars[reader->current_line_chars_length] = c;
-			// reader->current_line_chars_length++;
-		// }
-	// }
 	return c;
 }
 
@@ -148,19 +131,15 @@ int ProgramReader_ungetc(char c, ProgramReader* reader) {
 	if (c == '\n') {
 		reader->line_number--;
 		reader->character_number = reader->prev_line_character_number;
-		// reader->current_line_chars_length = -2;
 	} else {
 		reader->character_number--;
-		// reader->current_line_chars_length--;
 	}
 	return result;
 }
 
 void ProgramReader_move_discardchars(ProgramReader* reader, long offset) {
-	// fseek(reader->stream, offset, SEEK_CUR);
-	for (int i = 0; i < offset; i++) {
+	for (int i = 0; i < offset; i++) 
 		ProgramReader_fgetc(reader);
-	}
 }
 
 typedef struct {
@@ -1043,7 +1022,6 @@ int main(int argc, char **argv) {
 
 	/* Nastaviť celé pole na inštrukciu NULL, aby sme náhodou nebežali hodnoty, ktoré tam boli pred alokáciou */
 	memset(bytecode, INST_NULL, MAX_BYTECODE_LENGTH);
-	// for (unsigned i = 0; i < MAX_BYTECODE_LENGTH; i++) {bytecode[i] = INST_NULL;}
 
 	int play;
 	char play_char;
@@ -1065,7 +1043,7 @@ int main(int argc, char **argv) {
 	/* Parse arguments and flags */
 	for (int arg_i = 1; arg_i < argc; arg_i++){
 		if (argv[arg_i][0] == '-') {
-			// PARSE FLAGS
+			// Parse flags
 			if (strcmp(argv[arg_i], "--help") == 0 || strcmp(argv[arg_i], "-h") == 0) {
 				printf(HELP_MSG);
 				return 0;
@@ -1112,7 +1090,7 @@ int main(int argc, char **argv) {
 			}
 			
 		} else {
-			// PARSE ARGUMENTS
+			// Parse arguments
 			if (filename_arg_i == -1) {
 
 				filename_arg_i = arg_i;
