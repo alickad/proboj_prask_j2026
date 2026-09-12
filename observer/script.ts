@@ -15,6 +15,7 @@ let ANIMATION_IS_PAUSED = true;
 let ANIMATION_SPEED = 1;
 let CURRENT_ANIMATION_UUID: string|null = null;
 const WAIT_BETWEEN_TURN_ANIMATION = 2000;
+let ARE_SCORES_SHOWN: boolean = false;
 // let ANIMATING_TOWARDS_TURN: number|null = null;
 const WINNER_COLOR = '#00ff00'
 const LOSER_COLOR = '#ff0000'
@@ -140,7 +141,7 @@ function whoWonMatch(turn1: string, turn2: string) {
 }
 
 function setupTurnReplay(turns: string[][]){
-    document.getElementById("controls")!.style.display = 'block';
+    document.getElementById("controls")!.style.display = 'grid';
     document.getElementById("replay_canvas")!.style.display = 'grid';
     document.getElementById("replay_speed_input")!.addEventListener('input', (event)=>{
         // @ts-ignore
@@ -267,6 +268,11 @@ function changeTurn(turn: number) {
     CURRENT_TURN_RESULT_TEXT_ELEMENTS[0].textContent = ['DRAW', 'WINNER', 'LOSER'][winner];
     CURRENT_TURN_RESULT_TEXT_ELEMENTS[1].textContent = ['DRAW', 'LOSER', 'WINNER'][winner];
 
+    CURRENT_TURN_ELEMENTS[0]!.style.borderColor = "#000";
+    CURRENT_TURN_ELEMENTS[1]!.style.borderColor = "#000";
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[0]!.style.color = "#fff";
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]!.style.color = "#fff";
+
     if (!CURRENT_TURN_ELEMENTS[0] || !CURRENT_TURN_ELEMENTS[1]) { console.error(`Current turn elements not loaded.`); return; }
     CURRENT_TURN_ELEMENTS[0].textContent = TURN_EMOJI.get(GAME_TURNS[turn][0]) ?? GAME_TURNS[turn][0];
     CURRENT_TURN_ELEMENTS[0].style.backgroundColor = [DRAW_COLOR, WINNER_COLOR, LOSER_COLOR][winner];
@@ -278,7 +284,7 @@ function changeTurn(turn: number) {
 
 function cancelCurrentAnimation(pause_replay?:boolean) {
     if (pause_replay) {
-        document.getElementById("pause_button")!.textContent = "Resume";
+        document.getElementById("pause_button")!.textContent = "Play";
         ANIMATION_IS_PAUSED = true;
     }
     changeTurn(CURRENT_TURN);
@@ -408,3 +414,41 @@ function setReplaySpeed(speed: number) {
     // @ts-ignore
     document.getElementById("replay_speed_input").value = speed.toString();
 }
+
+// function toogleShowScores() {
+//     let element = document.getElementById("scores_text")!;
+//     if (ARE_SCORES_SHOWN) {
+//         ARE_SCORES_SHOWN = false;
+//         element.style.display = "none";
+//     } else {
+//         ARE_SCORES_SHOWN = true;
+//         element.style.display = "block";
+//     }
+// }
+
+function showScore() {
+    if (!CURRENT_TURN_ELEMENTS[0] || !CURRENT_TURN_ELEMENTS[1] || !FINAL_SCORE[0] || !FINAL_SCORE[1] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[0] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]) {
+        alert("Refusing to show scores: something is not loaded (!CURRENT_TURN_ELEMENTS[0] || !CURRENT_TURN_ELEMENTS[1] || !FINAL_SCORE[0] || !FINAL_SCORE[1] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[0] || !CURRENT_TURN_RESULT_TEXT_ELEMENTS[1])")
+        return;
+    }
+    cancelCurrentAnimation(true);
+    CURRENT_TURN_ELEMENTS[0].innerText = FINAL_SCORE[0];
+    CURRENT_TURN_ELEMENTS[1].innerText = FINAL_SCORE[1];
+    let overalwinner: number;
+    if (FINAL_SCORE[0]! == FINAL_SCORE[1]!) 
+        overalwinner = 0;
+    else if (FINAL_SCORE[0]! > FINAL_SCORE[1]!) 
+        overalwinner = 1;
+    else 
+        overalwinner = 2; //(FINAL_SCORE[0]! < FINAL_SCORE[1]!) 
+    CURRENT_TURN_ELEMENTS[0]!.style.backgroundColor = "#000";
+    CURRENT_TURN_ELEMENTS[1]!.style.backgroundColor = "#000";
+
+    CURRENT_TURN_ELEMENTS[0]!.style.borderColor = [DRAW_COLOR, WINNER_COLOR, LOSER_COLOR][overalwinner];
+    CURRENT_TURN_ELEMENTS[1]!.style.borderColor = [DRAW_COLOR, LOSER_COLOR, WINNER_COLOR][overalwinner];
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[0]!.innerText = ['DRAW', 'WINNER', 'LOSER'][overalwinner];
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]!.innerText = ['DRAW', 'LOSER', 'WINNER'][overalwinner];
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[0]!.style.color = [DRAW_COLOR, WINNER_COLOR, LOSER_COLOR][overalwinner];
+    CURRENT_TURN_RESULT_TEXT_ELEMENTS[1]!.style.color = [DRAW_COLOR, LOSER_COLOR, WINNER_COLOR][overalwinner];
+}
+

@@ -15,17 +15,22 @@
     </div>
     <div id="controls">
         <p>
-            <button class="action_button" onclick="setReplaySpeed(ANIMATION_SPEED + 0.05)">Slower</button>
-            <button class="action_button" onclick="previousTurn()">Previous</button>
-            <button class="action_button" id="pause_button" onclick="pauseButtonPress()">Play</button>
-            <button class="action_button" onclick="nextTurn()">Next</button>
-            <button class="action_button" onclick="setReplaySpeed(ANIMATION_SPEED - 0.05)">Faster</button>
+            <button class="action_button button_slower" onclick="setReplaySpeed(ANIMATION_SPEED + 0.05)">Slower</button>
+            <button class="action_button button_previous" onclick="previousTurn()">Previous</button>
+            <button class="action_button button_play" id="pause_button" onclick="pauseButtonPress()">Play</button>
+            <button class="action_button button_next" onclick="nextTurn()">Next</button>
+            <button class="action_button button_faster" onclick="setReplaySpeed(ANIMATION_SPEED - 0.05)">Faster</button>
             <!-- <button onclick="animateTurn()">DEBUG</button> -->
         </p>
+        <div></div>
         <p>
             Replay speed:
             <input type="number" name="replay_speed" id="replay_speed_input" step="0.05" min="0.1">
         </p>
+        <div class="score_div">
+            <button class="action_button button_show_scores" onclick="showScore()">Show score</button>
+            <!-- <p id="scores_text">Scores not loaded.</p> -->
+        </div>
     </div>
     <div id="replay_canvas">
         <div id="replay_canvas_history">

@@ -14,17 +14,48 @@ button {
     padding: 2px 5px;
 }
 
+.button_show_scores {
+    place-self: end;
+}
+
 .action_button {
     font-size: medium;
     font-weight: bold;
     border: 2px solid white;
+    cursor: pointer;
 }
 
-#upload_div {
+.button_slower {
+    cursor: zoom-in;
+}
 
+.button_previous {
+    cursor: w-resize;
+}
+
+.button_play {
+    cursor: pointer;
+}
+
+.button_next {
+    cursor: e-resize;
+}
+
+.button_faster {
+    cursor: zoom-out;
 }
 
 #controls {
+    display: none;
+    grid-template-columns: 1fr auto;
+}
+/* 
+.scores_div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+} */
+
+#scores_text {
     display: none;
 }
 
@@ -63,6 +94,7 @@ button {
     font-size: 500%;
     border-radius: 25px;
     padding: 10px;
+    border: 3px solid white;
 }
 
 #replay_canvas_history {

@@ -3,6 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+// Source - https://stackoverflow.com/q/9230554
+#if defined(_WIN32) || defined(WIN32)
+
+#define PATH_SEPARATOR '\\'
+#include <io.h>
+#define F_OK 0
+#define access _access
+
+#else
+
+#define PATH_SEPARATOR '/'
+#include <unistd.h>
+
+#endif
 
 
 #define MAX_BYTECODE_LENGTH 16384
@@ -18,6 +35,9 @@
 /* najdlhsia dlzka riadku pri ktorej sa zobrazuje error, ktory vypise riadok a ukaze na chybu */
 /*                                                                                      ^^^^^ */
 #define MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP 128
+
+/* Najvacsia povolena dlzka output file nazvu */
+#define MAX_OUTPUT_FILE_NAME_LENGHT 128
 
 /* Kolko miesta potrebujeme na nazvy vsetkych premennych,
 	teda MAX_VARIABLE_COUNT * MAX_VARIABLE_LENGTH */
@@ -103,7 +123,7 @@
 #define TURN_ROCK 0
 #define TURN_PAPER 1
 #define TURN_SCISSORS 2
-#define TURN_ERROR 127
+#define TURN_ERROR 3
 
 /* Vyzera to strasne divne, read more: https://stackoverflow.com/questions/62957620/function-pointer-in-struct-taking-the-struct-as-argument-in-c */
 typedef struct {
@@ -915,35 +935,76 @@ int run(int *memory, unsigned char *bytecode) {
 	}
 }
 
+/** 
+	Determines the result of match.
+
+	returns: 
+		> 0 - draw
+		> 1 - turn 1 won
+		> 2 - turn 2 won
+		> -1 - turn 1 errored out (player 1 lost the game, end of game)
+		> -2 - turn 2 errored out (player 2 lost the game, end of game)
+		> -3 - both turns errored out (draw, end of game)
+		> -100 - invalid turns, valid turns: are defined in TURN_ROCK, TURN_PAPER, TURN_SCISSORS, TURN_ERROR or undefined combination (shouldn't happen)
+*/
+int who_won_round(char turn1, char turn2) {
+	if (turn1 != TURN_ROCK && turn1 != TURN_PAPER && turn1 != TURN_SCISSORS && turn1 != TURN_ERROR) return -100;
+	if (turn2 != TURN_ROCK && turn2 != TURN_PAPER && turn2 != TURN_SCISSORS && turn2 != TURN_ERROR) return -100;
+
+	if (turn1 == turn2) {
+		if (turn1 == TURN_ERROR) {
+			return -3;
+		}
+		return 0;
+	}
+	else if (turn1 == TURN_ERROR) {
+		return -1;
+	}
+	else if (turn2 == TURN_ERROR) {
+		return -2;
+	}
+	else if (turn1 == TURN_SCISSORS && turn2 == TURN_PAPER) return 1;
+	else if (turn1 == TURN_SCISSORS && turn2 == TURN_ROCK) return 2;
+	else if (turn1 == TURN_PAPER && turn2 == TURN_ROCK) return 1;
+	else if (turn1 == TURN_PAPER && turn2 == TURN_SCISSORS) return 2;
+	else if (turn1 == TURN_ROCK && turn2 == TURN_PAPER) return 2;
+	else if (turn1 == TURN_ROCK && turn2 == TURN_SCISSORS) return 1;
+
+	printf("Unexpected error: unknown turn combination: `%c` and `%c`\n", turn1, turn2);
+	return -100;
+}
+
 char get_scores_from_game(int roundc, char* round_data, int scores[2]) {
 	int score1 = 0;
 	int score2 = 0;
-	for (int round_i = 0; round_i < roundc; round_i++) {
-		if (round_data[round_i * 2] == round_data[round_i * 2 + 1]) {
-			if (round_data[round_i * 2] == TURN_ERROR) {
+	bool end = false;
+	for (int round_i = 0; round_i < roundc && !end; round_i++) {
+		int round_result = who_won_round(round_data[round_i * 2], round_data[round_i * 2 + 1]);
+		switch (round_result) {
+			case 0:
+				break;
+			case 1:
+				score1++;
+				break;
+			case 2:
+				score2++;
+				break;
+			case -1:
+				score1 = -1;
+				end = true;
+				break;
+			case -2:
+				score2 = -1;
+				end = true;
+				break;
+			case -3:
 				score1 = -1;
 				score2 = -1;
+				end = true;
 				break;
-			}
-			continue;
-		}
-		else if (round_data[round_i * 2] == TURN_ERROR) {
-			score1 = -1;
-			break;
-		}
-		else if (round_data[round_i * 2 + 1] == TURN_ERROR) {
-			score2 = -1;
-			break;
-		}
-		else if (round_data[round_i * 2] == TURN_SCISSORS && round_data[round_i * 2 + 1] == TURN_PAPER) score1++;
-		else if (round_data[round_i * 2] == TURN_SCISSORS && round_data[round_i * 2 + 1] == TURN_ROCK) score2++;
-		else if (round_data[round_i * 2] == TURN_PAPER && round_data[round_i * 2 + 1] == TURN_ROCK) score1++;
-		else if (round_data[round_i * 2] == TURN_PAPER && round_data[round_i * 2 + 1] == TURN_SCISSORS) score2++;
-		else if (round_data[round_i * 2] == TURN_ROCK && round_data[round_i * 2 + 1] == TURN_PAPER) score2++;
-		else if (round_data[round_i * 2] == TURN_ROCK && round_data[round_i * 2 + 1] == TURN_SCISSORS) score1++;
-		else {
-			printf("Unexpected error: uknown turn combination: `%c` and `%c`\n", round_data[round_i * 2], round_data[round_i * 2 + 1]);
-			return -1;
+			case -100:
+				printf("Error: Somehow invalid turn / turn combination: %c, %c", round_data[round_i * 2], round_data[round_i * 2 + 1]);
+				return -1;
 		}
 	}
 	scores[0] = score1;
@@ -967,7 +1028,99 @@ const char* get_turn_name(char turn) {
 		}
 	}
 }
-int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file) {
+
+bool doesFileExist(const char* filename) {
+	return !access(filename, F_OK);
+}
+
+int ensureDirectoryExists(char* filename) {
+	char dirname[MAX_OUTPUT_FILE_NAME_LENGHT];
+	int slash_pos = -1;
+	int i = 0;
+	while (filename[i] != '\0') {
+		if (filename[i] == PATH_SEPARATOR) {
+			slash_pos = i;
+			strncpy(dirname, filename, slash_pos);
+			DIR* dir = opendir(dirname);
+			if (!dir) {
+				int result = mkdir(dirname, 0777);
+				if (result == -1) {
+					closedir(dir);
+					return -1;
+				}
+			}
+			closedir(dir);
+		}
+		i++;
+	}
+	return 0;
+}
+
+int makeFilenameUnique(char* filename) {
+	if (ensureDirectoryExists(filename) == -1) {
+		printf("Failed to ensure directory exists.\n");
+		return 1;
+	}
+	if (!doesFileExist(filename)) return 0;
+	#ifdef DEBUG
+		printf("Creating unique filename from: `%s`\n", filename);
+	#endif
+	int file_extension_period_pos = -1;
+	int i = 0;
+	while (filename[i] != '\0') {
+		if (filename[i] == '.') file_extension_period_pos = i;
+		i++;
+	}
+
+	#ifdef DEBUG
+		printf("makeFilenameUnique(): Period position in filename is %i\n", file_extension_period_pos);
+	#endif
+
+	char file_basename[MAX_OUTPUT_FILE_NAME_LENGHT];
+	if (file_extension_period_pos != -1) {
+		snprintf(file_basename, file_extension_period_pos + 1, "%s", filename);
+		// file_basename[file_extension_period_pos + 1] = '\0';
+	} else
+		// snprintf(file_basename, strlen(filename)+1, "%s", filename);
+	 	strcpy(file_basename, filename);
+	file_basename[strlen(file_basename)] = '\0';
+	#ifdef DEBUG
+		printf("makeFilenameUnique(): File basename(%lu): `%s`\n", strlen(file_basename), file_basename);
+	#endif
+	
+	char file_extension[MAX_OUTPUT_FILE_NAME_LENGHT]; // Yeet there the full length to avoid shananogans like this: `haha.immabreakyourcodefrfr ... [more nonsense] ... haha`, where the period is at the start of the filename
+	// strncpy(file_extension, filename + file_extension_period_pos + 1, i - file_extension_period_pos);
+	if (file_extension_period_pos != -1)
+		snprintf(file_extension, strlen(filename) - file_extension_period_pos, "%s", filename + file_extension_period_pos + 1);
+	else
+	 	file_extension[0] = '\0';
+	#ifdef DEBUG
+		printf("makeFilenameUnique(): File extension: `%s`\n", file_extension);
+	#endif
+	
+	char file_fullname[MAX_OUTPUT_FILE_NAME_LENGHT + 10]; // +10 - leave space for the index number
+	
+	for (int j = 1; j < 1000000000; j++) {
+		if (file_extension_period_pos != -1)
+			sprintf(file_fullname, "%s#%i.%s", file_basename, j, file_extension);
+		else
+		 	sprintf(file_fullname, "%s#%i", file_basename, j);
+		#ifdef DEBUG
+			printf("Trying file #%i: `%s`\n", j, file_fullname);
+		#endif
+		bool avaible = !doesFileExist(file_fullname);
+		if (avaible) {
+			strcpy(filename, file_fullname);
+			return 0;
+		}
+	}
+	return -1;
+}
+
+int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file_template, char* output_file) {
+	if (strlen(output_file_template) > MAX_OUTPUT_FILE_NAME_LENGHT) {printf("output_file_raw too long, max %i", MAX_OUTPUT_FILE_NAME_LENGHT); return -1;}
+	strcpy(output_file, output_file_template);
+	makeFilenameUnique(output_file);
 	int scores[2];
 	get_scores_from_game(roundc, turn_data, scores);
 	FILE *file;
@@ -983,22 +1136,27 @@ int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_d
 		const char* turn1 = get_turn_name(turn_data[i * 2]);
 		if (turn1 == NULL) {
 			printf("Error: save_game(): unknown turn %i: `%c` (ASCII: %i)", i, turn_data[i * 2], (int)turn_data[i * 2]);
+			fclose(file);
 			return -2;
 		}
 		const char* turn2 = get_turn_name(turn_data[i * 2 + 1]);
 		if (turn2 == NULL){
-			printf("Error: save_game(): unknown turn %i: `%c` (ASCII: %i)", i, turn_data[i * 2], (int)turn_data[i * 2]);
+			printf("Error: save_game(): unknown turn %i: `%c` (ASCII: %i)", i, turn_data[i * 2 + 1], (int)turn_data[i * 2 + 1]);
+			fclose(file);
 			return -2;
 		}
 		fprintf(file, "\n%s %s", turn1, turn2);
 	}
+	fclose(file);
 	return 0;
 }
 
 const char HELP_MSG[] = "\nUsage: ./kamenpapier [flags] file(s)\n"
 						"Flags:\n"
 						" --help / -h: Print this message and exit\n\n"
-						" --output / -o: Output file name (.txt extension is reccomended), default: `kamenpapier_game_replay.txt`\n\n"
+						" --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`\n"
+						"                Note: Output file will never overwrite another, it will always be made unique by adding #[number] to it (e.g.: game.txt -> game#2.txt)\n"
+						"                Warning: Try to not do weird things with paths (e.g.: ~/../home/Documents/../Pictures/g.txt), this wasn't tested properly (yet)\n\n"
 						" -r <ROUNDS>: (default: 50) Number of rounds played (if one of players errors out or doesn't play a turn, the game will be ended early)\n"
 						" --names / -n: Provide names of players separated by space (default: player1 and player2).\n"
 						"               Order: In manual mode, the first name is of human and the second of program\n"
@@ -1009,8 +1167,8 @@ const char HELP_MSG[] = "\nUsage: ./kamenpapier [flags] file(s)\n"
 						"  In manual mode,  provide one file\n"
 						"  In program mode, provide two files\n\n"
 						"Example usage:\n"
-						"$ ./kamenpapier -m -r 10 -n human bot -o example_output.txt example.psc\n"
-						"$ ./kamenpapier -r 50 --names botA botB --output example_output.txt example.psc example2.psc";
+						"$ ./kamenpapier -m -r 10 -n human bot example.psc\n"
+						"$ ./kamenpapier -r 50 --names botA botB --output game_replay/combatt.txt example.psc example2.psc";
 int main(int argc, char **argv) {
 	#ifdef DEBUG
 		printf("Running in debug mode...\n\n");
@@ -1027,8 +1185,8 @@ int main(int argc, char **argv) {
 	char play_char;
 	int bot_play;
 
-	const char *play_names[3] = {"kamen", "papier", "noznice"};
-	const char *DEFAULT_OUTPUT_FILE = "kamenpapier_game_replay.txt";
+	const char *play_names[4] = {"kamen", "papier", "noznice", "ERROR"};
+	const char *DEFAULT_OUTPUT_FILE = "game_replay/game.txt";
 	const char *DEFAULT_PLAYER1_NAME = "player1";
 	const char *DEFAULT_PLAYER2_NAME = "player2";
 
@@ -1115,7 +1273,10 @@ int main(int argc, char **argv) {
 	#endif
 
 	if (filename_arg_i == -1) {
-		printf("\nError: At least one argument required, got none\n\n");
+		if (mode == 'p')
+			printf("\nError: Two arguments expected for mode 'program', got none\n");
+		else 
+			printf("\nError: One argument expected for mode 'manual', got none\n\n");
 		printf(HELP_MSG);
 		return 1;
 	}
@@ -1134,6 +1295,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	const char* output_file = output_file_arg_i == -1 ? DEFAULT_OUTPUT_FILE : argv[output_file_arg_i];
+	if (strlen(output_file) > MAX_OUTPUT_FILE_NAME_LENGHT) {
+		printf("Output filename too long, maximum lenght: %i\n", MAX_OUTPUT_FILE_NAME_LENGHT);
+		return 1;
+	}
 	const char* player1_name = player1_name_arg_i == -1 ? DEFAULT_PLAYER1_NAME : argv[player1_name_arg_i];
 	const char* player2_name = player2_name_arg_i == -1 ? DEFAULT_PLAYER2_NAME : argv[player2_name_arg_i];
 
@@ -1159,10 +1324,13 @@ int main(int argc, char **argv) {
 		#endif
 
 		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu, 'e' pre vzdanie sa alebo `!` pre ukončenie hry.\n");
+		printf("(Hrá sa %i kôl)\n> ", roundc);
 
 		/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
 		memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
 		int round_i;
+		int score_human = 0;
+		int score_program = 0;
 		for (round_i = 0; round_i < roundc; round_i++) {
 			if (!(scanf("%c", &play_char) > 0)) {break;}
 			#ifdef DEBUG
@@ -1176,6 +1344,7 @@ int main(int argc, char **argv) {
 			else if (play_char == 'n') 
 				play = TURN_SCISSORS;
 			else if (play_char == 'e') {
+				printf("Turn error\n");
 				play = TURN_ERROR;
 			}
 			else if (play_char == '\n') {
@@ -1197,7 +1366,47 @@ int main(int argc, char **argv) {
 				printf("Bot nezahral tah, koniec hry.\n");
 				break;
 			}
-			printf("ty: %7s,  bot: %7s\n", play_names[play], play_names[bot_play]);
+			int result = who_won_round(play, bot_play);
+			#ifdef DEBUG
+				printf("[DEBUG] result=%i\n", result);
+			#endif
+			printf("[Kolo %i] Ty: %s, Program: %s ", round_i, play_names[play], play_names[bot_play]);
+			
+			switch (result) {
+				case 0:
+					printf("[Remiza]"); 
+					break;
+				case 1:
+					printf("[Vyhral si!]"); 
+					score_human++; 
+					break;
+				case 2:
+					printf("[Prehral si]"); 
+					score_program++; 
+					break;
+				case -1:
+					printf("\nZahral si Error, prehral si hru, koniec hry."); 
+					score_human = -1; 
+					break;
+				case -2:
+					printf("\nProgram bota spadol alebo nezahral tah, vyhral si hru, koniec hry."); 
+					score_program = -1; 
+					break;
+				case -3:
+					printf("\nTy si zahral Error a program bota spadol alebo nezahral tah, (nie je to cute ako sa matchujete v eroroch?), remiza, koniec hry!!"); 
+					score_human = -1; 
+					score_program = -1;
+					break;
+				case -100:
+					printf("Achevement get: How did we get here? (this should never happen: Unknown move or move combination: %c, %c).", play, bot_play); break;
+				default:
+					printf("TODO BY SA NIKDY NEMALO STAŤ, PROSÍM KONTAKTUJ DEVELOPERA :who_won_round() returned unexpected code: `%i`.", result); break;
+			}
+			if (score_human == -1 || score_program == -1)
+				printf(" Skore: Ty: %i, Program: %i\n", score_human, score_program);
+			else
+				printf(" Skore: Ty: %i, Program: %i\n> ", score_human, score_program);
+			
 			memory[ADDRESS_OPPONENTS_LAST_PLAY] = play;
 			turn_data[round_i * 2] = play;
 			turn_data[round_i * 2 + 1] = bot_play;
@@ -1206,11 +1415,24 @@ int main(int argc, char **argv) {
 				break;
 		}
 		if (round_i == roundc) printf("\nVsetky kola boli zahrate (%d), koniec\n", round_i);
-		else printf("\nHra bola ukoncena predcasne v kole %d\n", round_i);
+		else printf("\nHra bola ukoncena predcasne v kole %d\n\n", round_i);
+		printf("Finalne skore: Ty: %i, Program: %i\nResult: ", score_human, score_program);
+		if (score_human > score_program) {
+			printf("Vyhral si!\n\n");
+		} else if (score_human < score_program) {
+			printf("Prehral si.\n\n");
+		} else {
+			printf("Remiza.\n\n");
+		}
 
-		printf("Saving game to `%s`...", output_file);
+		printf("Prebieha ukladanie hry do suboru...\n");
+
+		char output_file_unique[MAX_OUTPUT_FILE_NAME_LENGHT + 10]; // Tu sa zapise jedinecny nazov suboru
 		/* Poznamka: Pouzivame round_i namiesto roundc, lebo ked ukoncime hru predcasne mame len round_i odohranych kol */
-		save_gamedata(player1_name, player2_name, round_i, turn_data, output_file);
+		int result = save_gamedata(player1_name, player2_name, round_i, turn_data, output_file, output_file_unique);
+
+		if (result == 0) // Success
+			printf("Hra bola ulozena do: `%s`", output_file_unique);
 		
 		#ifdef DEBUG
 			printf("\n GAME LOG:\n");
