@@ -81,18 +81,19 @@
 #define INST_UNARY_MINUS     10
 #define INST_MULTIPLY        11
 #define INST_DIVIDE          12
-#define INST_EQUAL           13
-#define INST_LESS_THAN       14
-#define INST_LESS_EQUAL      15
-#define INST_GREATER_THAN    16
-#define INST_GREATER_EQUAL   17
-#define INST_OR              18
-#define INST_AND             19
-#define INST_NOT             20
+#define INST_MODULO          13
+#define INST_EQUAL           14
+#define INST_LESS_THAN       15
+#define INST_LESS_EQUAL      16
+#define INST_GREATER_THAN    17
+#define INST_GREATER_EQUAL   18
+#define INST_OR              19
+#define INST_AND             20
+#define INST_NOT             21
 /* JUMP_IF_ZERO: zoberieme cislo zo stacku a ak je to 0, tak skocime na take miesto
 	v programe, ako hovori parameter. Je iba verzia s 2 parametrami, lebo ked piseme
 	tu instrukciu, tak nevieme dopredu, ako daleko bude ten if koncit. */
-#define INST_JUMP_IF_ZERO_2  21
+#define INST_JUMP_IF_ZERO_2  22
 
 /* NULL: defaultná hodnota bytecode bufferu, neicializovaná hodnota, keď ju prečítame vieme ze program skončil */
 #define INST_NULL            127
@@ -110,12 +111,13 @@
 #define OP_UNARY_MINUS  3
 #define OP_MULTIPLY     4
 #define OP_DIVIDE       5
+#define OP_MODULO       6
 
 /* Logicke operacie, tie su z hladiska precedence nezavisle od aritmetickych,
 	ale na popovanie zo stacku pouzivaju ten isty kod takze musia mat rozne cisla. */
-#define OP_OR   6
-#define OP_AND  7
-#define OP_NOT  8
+#define OP_OR   7
+#define OP_AND  8
+#define OP_NOT  9
 
 #define PRECEDENCE_ADD_SUBTRACT 1
 #define PRECEDENCE_MULTIPLY_DIVIDE 4
@@ -434,6 +436,7 @@ void operator_stack_pop_until(OperatorStack *stack, BytecodeWriter *writer, int 
 			case OP_ADD:          write_instruction(writer, INST_ADD);          break;
 			case OP_SUBTRACT:     write_instruction(writer, INST_SUBTRACT);     break;
 			case OP_MULTIPLY:     write_instruction(writer, INST_MULTIPLY);     break;
+			case OP_MODULO:       write_instruction(writer, INST_MODULO);       break;
 			case OP_DIVIDE:       write_instruction(writer, INST_DIVIDE);       break;
 			case OP_UNARY_MINUS:  write_instruction(writer, INST_UNARY_MINUS);  break;
 			case OP_NOT:          write_instruction(writer, INST_NOT);          break;
@@ -548,6 +551,10 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 	else if (read_char(reader, '/')) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_MULTIPLY_DIVIDE);
 		operator_stack_push(&operator_stack, OP_DIVIDE);
+	}
+	else if (read_char(reader, '%')) {
+		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_MULTIPLY_DIVIDE);
+		operator_stack_push(&operator_stack, OP_MODULO);
 	}
 	/* TODO: pridat sem nejaky else-if ze ak vidime otvarajucu zatvorku, tak vyhlasime
 		nejaku special case chybu ze tu nema byt. Lebo ocakavam ze deti mozno budu
@@ -810,6 +817,7 @@ void dump_bytecode(unsigned char *bytecode, int length) {
 			case INST_SUBTRACT:       printf("subtract\n");          break;
 			case INST_MULTIPLY:       printf("multiply\n");          break;
 			case INST_DIVIDE:         printf("divide\n");            break;
+			case INST_MODULO:         printf("modulo\n");            break;
 			case INST_EQUAL:          printf("equal\n");             break;
 			case INST_LESS_THAN:      printf("less than\n");         break;
 			case INST_LESS_EQUAL:     printf("less or equal\n");     break;
@@ -838,7 +846,7 @@ int run(int *memory, unsigned char *bytecode) {
 	i = 0;
 	while (1) {
 		/* DEBUGGING --------- */
-		#if 0
+		#ifdef DEEP_DEBUG
 		printf("%3d: stack: ", i);
 		for (j = 0; j < stack_length; j++) printf("%d ", stack[j]);
 		printf("\n");
@@ -890,6 +898,10 @@ int run(int *memory, unsigned char *bytecode) {
 			case INST_DIVIDE:
 				stack_length--;
 				stack[stack_length - 1] = stack[stack_length - 1] / stack[stack_length];
+			break;
+			case INST_MODULO:
+				stack_length--;
+				stack[stack_length - 1] = stack[stack_length - 1] % stack[stack_length];
 			break;
 			case INST_UNARY_MINUS:
 				stack[stack_length - 1] = -stack[stack_length - 1];
@@ -1056,9 +1068,11 @@ int ensureDirectoryExists(char* filename) {
 	return 0;
 }
 
-int makeFilenameUnique(char* filename) {
+int makeFilenameUnique(char* filename, bool disable_log) {
 	if (ensureDirectoryExists(filename) == -1) {
-		printf("Failed to ensure directory exists.\n");
+		#ifdef DEBUG
+			printf("Failed to ensure directory exists. (probably due to only being able to check and create one-level-deep directories)\nCreate the directory and try again.\n");
+		#endif
 		return 1;
 	}
 	if (!doesFileExist(filename)) return 0;
@@ -1117,11 +1131,11 @@ int makeFilenameUnique(char* filename) {
 	return -1;
 }
 
-int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file_template, char* output_file) {
+int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file_template, char* output_file, int* scores, bool disable_log) {
 	if (strlen(output_file_template) > MAX_OUTPUT_FILE_NAME_LENGHT) {printf("output_file_raw too long, max %i", MAX_OUTPUT_FILE_NAME_LENGHT); return -1;}
 	strcpy(output_file, output_file_template);
-	makeFilenameUnique(output_file);
-	int scores[2];
+	makeFilenameUnique(output_file, disable_log);
+
 	get_scores_from_game(roundc, turn_data, scores);
 	FILE *file;
 	file = fopen(output_file, "w");
@@ -1154,6 +1168,7 @@ int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_d
 const char HELP_MSG[] = "\nUsage: ./interpreter [flags] file(s)\n"
 						"Flags:\n"
 						" --help / -h: Print this message and exit\n\n"
+						" --no-log: (has no effect in manual mode or with DEBUG enabled) Disable all log messages except for final score and error messages"
 						" --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`\n"
 						"                Note: Output file will never overwrite another, it will always be made unique by adding #[number] to it (e.g.: game.txt -> game#2.txt)\n"
 						"                Warning: Try to not do weird things with paths (e.g.: ~/../home/Documents/../Pictures/g.txt), this wasn't tested properly (yet)\n\n"
@@ -1173,23 +1188,12 @@ int main(int argc, char **argv) {
 	#ifdef DEBUG
 		printf("Running in debug mode...\n\n");
 	#endif
-	FILE *file;
-	int memory[MEMORY_SIZE];
-	unsigned char bytecode[MAX_BYTECODE_LENGTH];
-
-
-	/* Nastaviť celé pole na inštrukciu NULL, aby sme náhodou nebežali hodnoty, ktoré tam boli pred alokáciou */
-	memset(bytecode, INST_NULL, MAX_BYTECODE_LENGTH);
-
-	int play;
-	char play_char;
-	int bot_play;
-
 	const char *play_names[4] = {"kamen", "papier", "noznice", "ERROR"};
 	const char *DEFAULT_OUTPUT_FILE = "game_replay/game.txt";
 	const char *DEFAULT_PLAYER1_NAME = "player1";
 	const char *DEFAULT_PLAYER2_NAME = "player2";
 
+	bool DISABLE_LOG = false;
 	int filename_arg_i = -1;
 	int filename2_arg_i = -1;
 	int player1_name_arg_i = -1;
@@ -1240,6 +1244,9 @@ int main(int argc, char **argv) {
 				}
 				output_file_arg_i = arg_i + 1;
 				arg_i++;
+				continue;
+			} else if (strcmp(argv[arg_i], "--no-log") == 0) {
+				DISABLE_LOG = true;
 				continue;
 			} else {
 				printf("Error: Unknown flag `%s`\n\n", argv[arg_i]);
@@ -1313,9 +1320,24 @@ int main(int argc, char **argv) {
 	}
 
 	if (mode == 'm') {
+		int memory[MEMORY_SIZE];
+		unsigned char bytecode[MAX_BYTECODE_LENGTH];
 
-		file = fopen(argv[filename_arg_i], "r");
-		compile(file, memory, bytecode);
+
+		/* Nastaviť celé pole na inštrukciu NULL, aby sme náhodou nebežali hodnoty, ktoré tam boli pred alokáciou */
+		memset(bytecode, INST_NULL, MAX_BYTECODE_LENGTH);
+
+		int play;
+		char play_char;
+		int bot_play;
+
+		if (!doesFileExist(argv[filename_arg_i])) {
+			printf("Error: Provided file `%s` does not exist.", argv[filename_arg_i]);
+			free(turn_data);
+			return 1;
+		}
+		FILE *program_file = fopen(argv[filename_arg_i], "r");
+		compile(program_file, memory, bytecode);
 
 		#ifdef DEBUG
 			int i = 0;
@@ -1400,7 +1422,7 @@ int main(int argc, char **argv) {
 				case -100:
 					printf("Achevement get: How did we get here? (this should never happen: Unknown move or move combination: %c, %c).", play, bot_play); break;
 				default:
-					printf("TODO BY SA NIKDY NEMALO STAŤ, PROSÍM KONTAKTUJ DEVELOPERA :who_won_round() returned unexpected code: `%i`.", result); break;
+					printf("TODO BY SA NIKDY NEMALO STAŤ, PROSÍM KONTAKTUJ DEVELOPERA: who_won_round() returned unexpected code: `%i`.", result); break;
 			}
 			if (score_human == -1 || score_program == -1)
 				printf(" Skore: Ty: %i, Program: %i\n", score_human, score_program);
@@ -1429,7 +1451,8 @@ int main(int argc, char **argv) {
 
 		char output_file_unique[MAX_OUTPUT_FILE_NAME_LENGHT + 10]; // Tu sa zapise jedinecny nazov suboru
 		/* Poznamka: Pouzivame round_i namiesto roundc, lebo ked ukoncime hru predcasne mame len round_i odohranych kol */
-		int result = save_gamedata(player1_name, player2_name, round_i, turn_data, output_file, output_file_unique);
+		int scores[2];
+		int result = save_gamedata(player1_name, player2_name, round_i, turn_data, output_file, output_file_unique, scores, false);
 
 		if (result == 0) // Success
 			printf("Hra bola ulozena do: `%s`", output_file_unique);
@@ -1440,11 +1463,76 @@ int main(int argc, char **argv) {
 				printf("TURN %i: human: %s, bot: %s\n", i, play_names[turn_data[i*2]], play_names[turn_data[i*2+1]]);
 			}
 		#endif
+		fclose(program_file);
 
 	} else if (mode == 'p') {
-		printf("Not implemented");
-		free(turn_data);
-		return 1;
+		if (!doesFileExist(argv[filename_arg_i])) {
+			printf("Error: Provided file `%s` does not exist.", argv[filename_arg_i]);
+			free(turn_data);
+			return 1;
+		}
+		if (!doesFileExist(argv[filename2_arg_i])) {
+			printf("Error: Provided file `%s` does not exist.", argv[filename2_arg_i]);
+			free(turn_data);
+			return 1;
+		}
+
+		int program1_memory[MEMORY_SIZE];
+		unsigned char program1_bytecode[MAX_BYTECODE_LENGTH];
+		memset(program1_bytecode, INST_NULL, MAX_BYTECODE_LENGTH);
+
+		int program2_memory[MEMORY_SIZE];
+		unsigned char program2_bytecode[MAX_BYTECODE_LENGTH];
+		memset(program2_bytecode, INST_NULL, MAX_BYTECODE_LENGTH);
+
+
+
+		int program1_turn;
+		int program2_turn;
+		int result;
+
+		#ifdef DEBUG
+			printf("(program1) Compiling program `%s`...\n", argv[filename_arg_i]);
+		#endif
+		FILE* program1_file = fopen(argv[filename_arg_i], "r");
+		compile(program1_file, program1_memory, program1_bytecode);
+		#ifdef DEBUG
+			printf("Compiled successfully.\n");
+
+			printf("(program2) Compiling program `%s`...\n", argv[filename2_arg_i]);
+		#endif
+		FILE* program2_file = fopen(argv[filename2_arg_i], "r");
+		compile(program2_file, program2_memory, program2_bytecode);
+		#ifdef DEBUG
+			printf("Compiled sucessfully.\n");
+		#endif
+
+		program1_memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
+		program2_memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
+
+		for (int round_i = 0; round_i < roundc; round_i++) {
+			program1_turn = run(program1_memory, program1_bytecode);
+			program2_turn = run(program2_memory, program2_bytecode);
+			turn_data[round_i * 2] = program1_turn;
+			turn_data[round_i * 2 + 1] = program2_turn;
+
+			result = who_won_round(program1_turn, program2_turn);
+			#ifdef DEBUG
+				printf("[DEBUG round %i] Turn1: %i, Turn2: %i, result: %i\n", round_i, program1_turn, program2_turn, result);
+			#endif
+			if (result < 0) {
+				break; // Someone error out - end the game
+			}
+		}
+
+		char output_file_unique[MAX_OUTPUT_FILE_NAME_LENGHT + 10]; // Tu sa zapise jedinecny nazov suboru
+		int scores[2];
+		save_gamedata(player1_name, player2_name, roundc, turn_data, output_file, output_file_unique, scores, DISABLE_LOG);
+		
+		printf("%i %i", scores[0], scores[1]);
+
+		fclose(program1_file);
+		fclose(program2_file);
 	} else {
 		printf("Unknown mode: `%c`", mode);
 		free(turn_data);

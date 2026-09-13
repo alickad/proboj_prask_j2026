@@ -2,6 +2,7 @@ nech kamene = 0
 nech papiere = 0
 nech noznice = 0
 
+program:
 ak minule kamen
 	kamene = kamene + 1
 koniec

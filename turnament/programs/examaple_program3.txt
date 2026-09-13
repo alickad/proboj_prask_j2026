@@ -9,12 +9,4 @@ tah = tah + 1
 X = Y/2*3
 Z = X + Z
 
-akcia = (Z + tah)
-
-ak (akcia == 2)
-zahraj kamen
-koniec
-ak (akcia == 0)
-zahraj papier
-koniec
-zahraj noznice
+akcia = (Z + tah) % 3

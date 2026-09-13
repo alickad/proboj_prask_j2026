@@ -49,6 +49,8 @@ $ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt examp
 #### Debug
 For debugging, define the DEBUG macro trough gcc flag
 
+Note: You can enable even more messages by defining DEEP_DEBUG macro (some logs are too messy to be shown in DEBUG)
+
 ```
 gcc interpreter.c -o interpreter -D DEBUG
 ```
