@@ -9,23 +9,25 @@ KAMEŇ PAPIER NOŽNICE
 #### Compile the interpreter
 
 ```
-gcc kamenpapier.c -o kamenpapier
+gcc interpreter.c -o interpreter
 ```
 
-#### Interpret Praskscript
+#### Run Praskscript
 
 ```
-./kamenpapier example.psc
+./interpreter example.psc
 ```
 
 #### Usage
 
 ```
-Usage: ./kamenpapier [flags] file(s)
+Usage: ./interpreter [flags] file(s)
 Flags:
  --help / -h: Print this message and exit
 
- --output / -o: Output file name (.txt extension is reccomended), default: `kamenpapier_game_replay.txt`
+ --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`
+                Note: Output file will never overwrite another, it will always be made unique by adding #[number] to it (e.g.: game.txt -> game#2.txt)
+                Warning: Try to not do weird things with paths (e.g.: ~/../home/Documents/../Pictures/g.txt), this wasn't tested properly (yet)
 
  -r <ROUNDS>: (default: 50) Number of rounds played (if one of players errors out or doesn't play a turn, the game will be ended early)
  --names / -n: Provide names of players separated by space (default: player1 and player2).
@@ -40,14 +42,16 @@ Files:
   In program mode, provide two files
 
 Example usage:
-$ ./kamenpapier -m -r 10 -n human bot -o example_output.txt example.psc
-$ ./kamenpapier -r 50 --names botA botB --output example_output.txt example.psc example2.psc
+$ ./interpreter -m -r 10 -n human bot example_program.txt
+$ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt example_program.txt example_program2.txt    
 ```
 
 #### Debug
 For debugging, define the DEBUG macro trough gcc flag
 
 ```
-gcc kamenpapier.c -o kamenpapier -D DEBUG
+gcc interpreter.c -o interpreter -D DEBUG
 ```
+
+## Praskscript syntax
 

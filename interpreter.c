@@ -1151,7 +1151,7 @@ int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_d
 	return 0;
 }
 
-const char HELP_MSG[] = "\nUsage: ./kamenpapier [flags] file(s)\n"
+const char HELP_MSG[] = "\nUsage: ./interpreter [flags] file(s)\n"
 						"Flags:\n"
 						" --help / -h: Print this message and exit\n\n"
 						" --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`\n"
@@ -1167,8 +1167,8 @@ const char HELP_MSG[] = "\nUsage: ./kamenpapier [flags] file(s)\n"
 						"  In manual mode,  provide one file\n"
 						"  In program mode, provide two files\n\n"
 						"Example usage:\n"
-						"$ ./kamenpapier -m -r 10 -n human bot example.psc\n"
-						"$ ./kamenpapier -r 50 --names botA botB --output game_replay/combatt.txt example.psc example2.psc";
+						"$ ./interpreter -m -r 10 -n human bot example_program.txt\n"
+						"$ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt example_program.txt example_program2.txt";
 int main(int argc, char **argv) {
 	#ifdef DEBUG
 		printf("Running in debug mode...\n\n");

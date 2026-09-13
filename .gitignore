@@ -2,5 +2,7 @@
 
 # Compiled binary
 kamenpapier
+interpreter
 
-game_replay
+game_replay/*
+!game_replay/example_game.txt
