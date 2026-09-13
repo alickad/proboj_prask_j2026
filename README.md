@@ -15,7 +15,7 @@ gcc interpreter.c -o interpreter
 #### Run Praskscript
 
 ```
-./interpreter example.psc
+./interpreter examples/example.psc
 ```
 
 #### Usage
@@ -25,7 +25,7 @@ Usage: ./interpreter [flags] file(s)
 Flags:
  --help / -h: Print this message and exit
 
- --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`
+ --no-log: (has no effect in manual mode or with DEBUG enabled) Disable all log messages except for final score and error messages --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`
                 Note: Output file will never overwrite another, it will always be made unique by adding #[number] to it (e.g.: game.txt -> game#2.txt)
                 Warning: Try to not do weird things with paths (e.g.: ~/../home/Documents/../Pictures/g.txt), this wasn't tested properly (yet)
 
@@ -42,8 +42,8 @@ Files:
   In program mode, provide two files
 
 Example usage:
-$ ./interpreter -m -r 10 -n human bot example_program.txt
-$ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt example_program.txt example_program2.txt    
+$ ./interpreter -m -r 10 -n human bot examples/example_program.txt
+$ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt examples/example_program.txt examples/example_program2.txt
 ```
 
 #### Debug

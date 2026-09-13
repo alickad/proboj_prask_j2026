@@ -1182,8 +1182,8 @@ const char HELP_MSG[] = "\nUsage: ./interpreter [flags] file(s)\n"
 						"  In manual mode,  provide one file\n"
 						"  In program mode, provide two files\n\n"
 						"Example usage:\n"
-						"$ ./interpreter -m -r 10 -n human bot example_program.txt\n"
-						"$ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt example_program.txt example_program2.txt";
+						"$ ./interpreter -m -r 10 -n human bot examples/example_program.txt\n"
+						"$ ./interpreter -r 50 --names botA botB --output game_replay/epic_game.txt examples/example_program.txt examples/example_program2.txt";
 int main(int argc, char **argv) {
 	#ifdef DEBUG
 		printf("Running in debug mode...\n\n");

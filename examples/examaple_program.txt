@@ -9,7 +9,7 @@ tah = tah + 1
 X = Y/2*3
 Z = X + Z
 
-akcia = (Z + tah)
+akcia = (Z + tah) % 3
 
 ak (akcia == 1)
 zahraj kamen
