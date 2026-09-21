@@ -28,6 +28,7 @@ THIS_SCRIPT_DIR = os.path.dirname(__file__)
 ROUNDS = None
 DEFAULT_OUTPUT_DIR = os.path.join(THIS_SCRIPT_DIR, 'output')
 OUTPUT_DIR = None
+OVERWRITE = False
 RELATIVE_PATHS = False
 HELP_MSG = f"""Usage: [python executable] run_turnament.py [flags] interpreter_executable programs'_direcotry
 Arguments:
@@ -41,7 +42,8 @@ Flags:
 --rounds / -r [rounds]: Specify the number of rounds per game (default: use default of the interpreter)
 
 --relative / -l: Resolves all provided paths relative to the directory containing this script. (This only changes current workink directory, so full paths should still work)
---output / -o: Directory where output files will be written (default: SCIRPT_DIR/output)
+--output / -o: Directory where output files will be written (default: SCIRPT_DIR/output). Must be empty unless overwrite is specified
+--overwrite: Do not check if output directory is empty
 
 --no-colors: (default on Windows) Disable colors (ANSI escape sequences)
 --colors: (default on non-windows platforms) Enable colors (ANSI escape sequences)
@@ -88,6 +90,8 @@ while arg_i < argc:
                 exit_error("Flag `--output / -o` is missing its value")
             OUTPUT_DIR = sys.argv[arg_i + 1]
             arg_i += 1
+        elif arg == '--overwrite':
+            OVERWRITE = True
         else:
             exit_error(f"Unknown flag: `{arg}`")
 
@@ -119,9 +123,8 @@ if not os.path.exists(INTERPRETER_EXECUTABLE):
 if (not os.path.exists(INPUT_DIR)) or not os.path.isdir(INPUT_DIR):
     exit_error(f"Programs' directory `{INPUT_DIR}` does not exist or is not a directory")
 
-#TODO add option to use non-empty directory and add option to interpreter to overwrite files
-if os.path.exists(OUTPUT_DIR) and os.listdir(OUTPUT_DIR):
-    exit_error(f"Specifies output directory (`{OUTPUT_DIR}`) is not empty")
+if (not OVERWRITE) and os.path.exists(OUTPUT_DIR) and os.listdir(OUTPUT_DIR):
+    exit_error(f"Specifies output directory (`{OUTPUT_DIR}`) is not empty (add --overwrite flag to bypass this check)")
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR) # ensure directory exists
