@@ -29,25 +29,7 @@ ROUNDS = None
 DEFAULT_OUTPUT_DIR = os.path.join(THIS_SCRIPT_DIR, 'output')
 OUTPUT_DIR = None
 RELATIVE_PATHS = False
-arguments = []
-argc = len(sys.argv)
-arg_i = 1
-while arg_i < argc:
-    arg = sys.argv[arg_i]
-    if arg[0] == '-':
-        if arg == '--rounds' or arg == '-r':
-            if arg_i + 1 >= argc:
-                log(f"Error: Flag `--rounds / -r` is missing its value", color=['red', 'bold'])
-                sys.exit(1)
-            val = sys.argv[arg_i + 1]
-            if not val.isdigit():
-                log(f"Error: Flag `--rounds / -r` requires integer value, got non-integer value", color=['red', 'bold'])
-                sys.exit(1)
-            ROUNDS = val
-            arg_i += 1
-        elif arg == '--help' or arg == '-h':
-            log(
-f"""Usage: [python executable] run_turnament.py [flags] interpreter_executable programs'_direcotry
+HELP_MSG = f"""Usage: [python executable] run_turnament.py [flags] interpreter_executable programs'_direcotry
 Arguments:
 - interpreter_executable: Interpreter executable. Usually ./interpreter or .\\interpreter.exe (or ../interpreter, ..\\interpreter.exe when using relative paths)
                           Note: this file will be executed with `[directory]/[FILE]`, where directory is this scirpt's directory if --relative flag is present, else current working directory
@@ -67,7 +49,33 @@ Flags:
 Example usage:
 python3 run_turnament.py -r 10 ../interpreter programs
 py run_turnament.py --rounds 50 C:\\\\Users\\\\Barbie\\\\Documents\\\\programming\\\\turnament\\\\interpreter.exe C:\\\\Users\\\\Barbie\\\\Documents\\\\programming\\\\turnament\\\\bot_programs
-""")
+"""
+
+def exit_error(message = None):
+    if message:
+        log(f"Error: {message}\n", color=["red", "bold"])
+    else:
+        log(f"Unknown error occured.\n", color=["red", "bold"])
+    log(HELP_MSG)
+    sys.exit(message if message else 1)
+
+
+arguments = []
+argc = len(sys.argv)
+arg_i = 1
+while arg_i < argc:
+    arg = sys.argv[arg_i]
+    if arg[0] == '-':
+        if arg == '--rounds' or arg == '-r':
+            if arg_i + 1 >= argc:
+                exit_error("Flag `--rounds / -r` is missing its value")
+            val = sys.argv[arg_i + 1]
+            if not val.isdigit():
+                exit("Flag `--rounds / -r` requires integer value, got non-integer value")
+            ROUNDS = val
+            arg_i += 1
+        elif arg == '--help' or arg == '-h':
+            log(HELP_MSG)
             sys.exit(0)
         elif arg == '--relative' or arg == '-l':
             RELATIVE_PATHS = True
@@ -77,13 +85,11 @@ py run_turnament.py --rounds 50 C:\\\\Users\\\\Barbie\\\\Documents\\\\programmin
             ENABLE_COLORS = True
         elif arg == '--output' or arg == '-o':
             if arg_i + 1 >= argc:
-                log(f"Error: Flag `--output / -o` is missing its value", color=['red', 'bold'])
-                sys.exit(1)
+                exit_error("Flag `--output / -o` is missing its value")
             OUTPUT_DIR = sys.argv[arg_i + 1]
             arg_i += 1
         else:
-            log(f"Error: Unknown flag: `{arg}`", color=['red', 'bold'])
-            sys.exit(1)
+            exit_error(f"Unknown flag: `{arg}`")
 
     else:
         arguments.append(arg)
@@ -91,13 +97,15 @@ py run_turnament.py --rounds 50 C:\\\\Users\\\\Barbie\\\\Documents\\\\programmin
     arg_i += 1
 
 if len(arguments) != 2:
-    log(f'Expected 2 arguments (interpreter executable command, programs\' directory), got {len(arguments)}', color=['red', 'bold'])
-    sys.exit(1)
+    exit_error(f"Expected 2 arguments (interpreter executable command, programs\' directory), got {len(arguments)}")
 
 if RELATIVE_PATHS:
     os.chdir(THIS_SCRIPT_DIR)
 if not OUTPUT_DIR:
     OUTPUT_DIR = DEFAULT_OUTPUT_DIR
+
+# # Prevent path from being influenced by os.chdir
+# OUTPUT_DIR = os.path.abspath(OUTPUT_DIR)
 
 INTERPRETER_EXECUTABLE = arguments[0]
 INPUT_DIR = arguments[1]
@@ -106,16 +114,14 @@ INPUT_DIR = arguments[1]
 #     log(f"Warning: You provided filename as executable command, if this doesn't work, consider using `./{INTERPRETER_EXECUTABLE}`\n", color=['yellow', 'bold'])
 #     # sys.exit(f"Error: Interpreter executable file `{INTERPRETER_EXECUTABLE}` does not exist.")
 if not os.path.exists(INTERPRETER_EXECUTABLE):
-    log(f"Error: Interpreter executable file not found: {INTERPRETER_EXECUTABLE}")
-    sys.exit(1)
+    exit_error(f"Interpreter executable file not found: {INTERPRETER_EXECUTABLE}")
 
 if (not os.path.exists(INPUT_DIR)) or not os.path.isdir(INPUT_DIR):
-    sys.exit(f"Error: Programs' directory `{INPUT_DIR}` does not exist or is not a directory")
+    exit_error(f"Programs' directory `{INPUT_DIR}` does not exist or is not a directory")
 
 #TODO add option to use non-empty directory and add option to interpreter to overwrite files
 if os.path.exists(OUTPUT_DIR) and os.listdir(OUTPUT_DIR):
-    log(f"Error: Specifies output directory (`{OUTPUT_DIR}`) is not empty" , color=['red', 'bold'])
-    sys.exit(1)
+    exit_error(f"Specifies output directory (`{OUTPUT_DIR}`) is not empty")
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR) # ensure directory exists
@@ -142,7 +148,9 @@ for program1_i in range(len(program_paths)):
     for program2_i in range(program1_i + 1, len(program_paths)):
         program2_path = program_paths[program2_i]
         program2_name = PROGRAM_NAMES[program2_path]
-        output_file = os.path.join(OUTPUT_DIR, f"match_{program1_name}_vs_{program2_name}.txt")
+
+        # Use abspath so the interpreter writes it to the correct direcotry
+        output_file = os.path.abspath(os.path.join(OUTPUT_DIR, f"match_{program1_name}_vs_{program2_name}.txt"))
         interpreter_dir = os.getcwd()
         process_command = [f"{interpreter_dir}/{INTERPRETER_EXECUTABLE}", program1_path, program2_path, '-o', output_file, '-n', program1_name, program2_name, '--no-log']
         if ROUNDS:
@@ -186,5 +194,5 @@ log(f"{'\n'.join(f'{name}: {score}' for name, score in PROGRAM_SCORES.items())}"
 
 #TODO: Add flag for output location
 import json
-with open('scores.json', 'w') as f:
+with open(os.path.join(OUTPUT_DIR, 'scores.json'), 'w') as f:
     json.dump(PROGRAM_SCORES, f)
