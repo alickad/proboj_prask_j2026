@@ -105,22 +105,28 @@
 	Pointa je ze veci mozu mat inu prednost ze koho mozu oni vyhodit zo stacku
 	a ze kto moze vyhodit zo stacku ich.
 	Begin group je zaciatok zatvorky alebo zaciatok celeho vyrazu*/
-#define OP_BEGIN_GROUP  0
-#define OP_ADD          1
-#define OP_SUBTRACT     2
-#define OP_UNARY_MINUS  3
-#define OP_MULTIPLY     4
-#define OP_DIVIDE       5
-#define OP_MODULO       6
 
-/* Logicke operacie, tie su z hladiska precedence nezavisle od aritmetickych,
-	ale na popovanie zo stacku pouzivaju ten isty kod takze musia mat rozne cisla. */
-#define OP_OR   7
-#define OP_AND  8
-#define OP_NOT  9
+#define OP_BEGIN_GROUP   0
+#define OP_OR            1
+#define OP_AND           2
+#define OP_NOT           3
+#define OP_EQUAL         4
+#define OP_NOT_EQUAL     5
+#define OP_LESS_THAN     6
+#define OP_LESS_EQUAL    7
+#define OP_GREATER_THAN  8
+#define OP_GREATER_EQUAL 9
+#define OP_ADD           10
+#define OP_SUBTRACT      11
+#define OP_UNARY_MINUS   12
+#define OP_MULTIPLY      13
+#define OP_DIVIDE        14
+#define OP_MODULO        15
 
-#define PRECEDENCE_ADD_SUBTRACT 1
-#define PRECEDENCE_MULTIPLY_DIVIDE 4
+#define PRECEDENCE_LOGICAL_OP 1
+#define PRECEDENCE_COMPARE 4
+#define PRECEDENCE_ADD_SUBTRACT 10
+#define PRECEDENCE_MULTIPLY_DIVIDE 12
 
 #define TURN_ROCK 0
 #define TURN_PAPER 1
@@ -282,7 +288,7 @@ int read_char(ProgramReader *reader, char target) {
 	c = ProgramReader_fgetc(reader);
 	if (c == EOF) return 0;
 	if (c == target) {
-		read_whitespace(reader);
+		if (target != ' ') read_whitespace(reader);
 		return 1;
 	}
 	ProgramReader_ungetc(c,reader);
@@ -442,6 +448,14 @@ void operator_stack_pop_until(OperatorStack *stack, BytecodeWriter *writer, int 
 			case OP_NOT:          write_instruction(writer, INST_NOT);          break;
 			case OP_AND:          write_instruction(writer, INST_AND);          break;
 			case OP_OR:           write_instruction(writer, INST_OR);           break;
+			case OP_EQUAL: 	      write_instruction(writer, INST_EQUAL);        break;
+			case OP_GREATER_THAN: write_instruction(writer, INST_GREATER_THAN); break;
+			case OP_GREATER_EQUAL:write_instruction(writer, INST_GREATER_EQUAL);break;
+			case OP_LESS_THAN:    write_instruction(writer, INST_LESS_THAN);    break;
+			case OP_LESS_EQUAL:   write_instruction(writer, INST_LESS_EQUAL);   break;
+
+			case OP_NOT_EQUAL:    write_instruction(writer, INST_EQUAL); 
+								  write_instruction(writer, INST_NOT);          break;
 		}
 		stack->top--;
 	}
@@ -505,6 +519,17 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 			}
 		}
 	}
+	/* keyword minule bude nasledovany tahom (napr. kamen) a jeho hodnota je 1 ak tento tah bol zahraty a 0 ak nebol */
+	else if (read_keyword(reader, "minule")) {
+		write_instruction(writer, INST_LOAD);
+		write_instruction(writer, ADDRESS_OPPONENTS_LAST_PLAY);
+		write_instruction(writer, INST_PUSH);
+		if (read_keyword(reader, "kamen")) write_instruction(writer, 0);
+		else if (read_keyword(reader, "papier")) write_instruction(writer, 1);
+		else if (read_keyword(reader, "noznice")) write_instruction(writer, 2);
+		else compile_error(reader, "Klucove slovo `minule` musi byt nasledovane menom tahu: `kamen`, `papier` alebo `noznice`", true);
+		write_instruction(writer, INST_EQUAL);
+	}
 	/* ...alebo premenna. */
 	else if (read_word(reader, variable_name)) {
 		int variable_id;
@@ -518,6 +543,9 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 		alebo operacie. */
 	after_value:
 	if (read_char(reader, ')')) {
+		// Tento if statement nefunguje ked mame vyraz so zatrvorkou, ktory potom pojkracuje: (1 + 2) - 3
+		// ked skonci zatrvorka, parser exitne a kompilator ocakava novy riadok
+
 		if (open_bracket_count == 0) {
 			/* Ak vidime unmatched zatvarajucu zatvorku, tak ju berieme ze neni sucast
 				tohoto vyrazu, a teda mozeme skoncit. To je preto ze ona moze byt sucast
@@ -556,6 +584,49 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_MULTIPLY_DIVIDE);
 		operator_stack_push(&operator_stack, OP_MODULO);
 	}
+	else if (read_char(reader, '=')) {
+		if (read_char(reader, '=')) {
+			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
+			operator_stack_push(&operator_stack, OP_EQUAL);
+		} else {
+			compile_error(reader, "Unknown operation", true);
+		}
+
+	} else if (read_char(reader, '<')) {
+		if (read_char(reader, '=')) {
+			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
+			operator_stack_push(&operator_stack, OP_LESS_EQUAL);
+		} else {
+			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
+			operator_stack_push(&operator_stack, OP_LESS_THAN);
+		}
+
+	} else if (read_char(reader, '>')) {
+		if (read_char(reader, '=')) {
+			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
+			operator_stack_push(&operator_stack, OP_GREATER_EQUAL);
+		} else {
+			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
+			operator_stack_push(&operator_stack, OP_GREATER_THAN);
+		}
+	}
+	else if (read_keyword(reader, "||") || read_keyword(reader, "or") || read_keyword(reader, "alebo")) {
+		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
+		operator_stack_push(&operator_stack, OP_OR);
+	}
+	else if (read_keyword(reader, "&&") || read_keyword(reader, "and") || read_keyword(reader, "aj")) {
+		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
+		operator_stack_push(&operator_stack, OP_AND);
+	}
+	else if (read_keyword(reader, "!=")) {
+		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
+		operator_stack_push(&operator_stack, OP_NOT_EQUAL);
+	}
+	else if (read_keyword(reader, "!") || read_keyword(reader, "not") || read_keyword(reader, "nie")) {
+		operator_stack_pop_until(&operator_stack, writer, OP_NOT);
+		operator_stack_push(&operator_stack, OP_NOT);
+	}
+
 	/* TODO: pridat sem nejaky else-if ze ak vidime otvarajucu zatvorku, tak vyhlasime
 		nejaku special case chybu ze tu nema byt. Lebo ocakavam ze deti mozno budu
 		pisat veci ako a(b + c), cim myslia a * (b + c). Ale to nechceme dovolit,
@@ -590,40 +661,42 @@ void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variab
 	}
 
 	/* Teraz ide samotna hodnota, co je bud `minule CO_ZAHRAL_HRAC` alebo VYRAZ POROVNANIE VYRAZ`. */
-	if (read_keyword(reader, "minule")) {
-		write_instruction(writer, INST_LOAD);
-		write_instruction(writer, ADDRESS_OPPONENTS_LAST_PLAY);
-		write_instruction(writer, INST_PUSH);
-		if (read_keyword(reader, "kamen")) write_instruction(writer, 0);
-		else if (read_keyword(reader, "papier")) write_instruction(writer, 1);
-		else if (read_keyword(reader, "noznice")) write_instruction(writer, 2);
-		else compile_error(reader, "treba zahrat kamen, papier alebo noznice", true);
-		write_instruction(writer, INST_EQUAL);
-	}
-	else {
+	// if (read_keyword(reader, "minule")) {
+	// 	write_instruction(writer, INST_LOAD);
+	// 	write_instruction(writer, ADDRESS_OPPONENTS_LAST_PLAY);
+	// 	write_instruction(writer, INST_PUSH);
+	// 	if (read_keyword(reader, "kamen")) write_instruction(writer, 0);
+	// 	else if (read_keyword(reader, "papier")) write_instruction(writer, 1);
+	// 	else if (read_keyword(reader, "noznice")) write_instruction(writer, 2);
+	// 	else compile_error(reader, "minule akceptuje len meno tahu: kamen, papier alebo noznice", true);
+	// 	write_instruction(writer, INST_EQUAL);
+	// }
+	// else {
 		/* Inak tu musi byt porovnanie */
 		int comparison;
 		parse_expression(reader, writer, variable_names);
-		if (read_char(reader, '<')) {
-			if (read_char(reader, '=')) comparison = INST_LESS_EQUAL;
-			else comparison = INST_LESS_THAN;
-		}
-		else if (read_char(reader, '>')) {
-			if (read_char(reader, '=')) comparison = INST_GREATER_EQUAL;
-			else comparison = INST_GREATER_THAN;
-		}
-		else if (read_char(reader, '=')) {
-			read_char(reader, '='); // Just in case ze niekto pouziva `==` namiesto `=`
-			comparison = INST_EQUAL;
-		}
-		else {
-			/* posunut momentalny znak tak aby v chybovej hlaske ukazoval na porovnavac; momentalne nefunkcne pre `ak (1 -- 1)`*/
-			// ProgramReader_move_discardchars(reader, 2);
-			compile_error(reader, "tu by malo byt porovnanie, teda < <= > alebo >=", true);
-		};
-		parse_expression(reader, writer, variable_names);
-		write_instruction(writer, comparison);
-	}
+		// if (read_char(reader, '<')) {
+		// 	if (read_char(reader, '=')) comparison = INST_LESS_EQUAL;
+		// 	else comparison = INST_LESS_THAN;
+		// }
+		// else if (read_char(reader, '>')) {
+		// 	if (read_char(reader, '=')) comparison = INST_GREATER_EQUAL;
+		// 	else comparison = INST_GREATER_THAN;
+		// }
+		// else if (read_char(reader, '=')) {
+		// 	read_char(reader, '='); // Just in case ze niekto pouziva `==` namiesto `=`
+		// 	comparison = INST_EQUAL;
+		// }
+		// else {
+		// 	/* posunut momentalny znak tak aby v chybovej hlaske ukazoval na porovnavac; momentalne nefunkcne pre `ak (1 -- 1)`*/
+		// 	// ProgramReader_move_discardchars(reader, 2);
+		// 	compile_error(reader, "tu by malo byt porovnanie, teda < <= > alebo >=", true);
+		// };
+		// parse_expression(reader, writer, variable_names);
+		write_instruction(writer, INST_PUSH);
+		write_instruction(writer, 1);
+		write_instruction(writer, INST_GREATER_EQUAL);
+	// }
 
 	/* Tu moze byt koniec zatvorky alebo operacia alebo koniec */
 	after_value:
@@ -736,9 +809,10 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 			else compile_error(&reader, "treba zahrat kamen, papier alebo noznice", true);
 		}
 		else if (read_keyword(&reader, "ak")) {
-			if (if_stack_length == MAX_NESTED_IFS)
+			if (if_stack_length >= MAX_NESTED_IFS)
 				compile_error(&reader, "prilis vela vnorenych podmienok", true);
-			parse_condition(&reader, &writer, variable_names);
+			// parse_condition(&reader, &writer, variable_names);
+			parse_expression(&reader, &writer, variable_names);
 			write_instruction(&writer, INST_JUMP_IF_ZERO_2);
 			/* dalsie dva byty su ze kam skocime ak if neplati,
 				co sa dozvieme az potom co precitame vnutro ifu,
@@ -815,6 +889,7 @@ void dump_bytecode(unsigned char *bytecode, int length) {
 			break;
 			case INST_ADD:            printf("add\n");               break;
 			case INST_SUBTRACT:       printf("subtract\n");          break;
+			case INST_UNARY_MINUS:    printf("unary minus\n");       break;
 			case INST_MULTIPLY:       printf("multiply\n");          break;
 			case INST_DIVIDE:         printf("divide\n");            break;
 			case INST_MODULO:         printf("modulo\n");            break;
@@ -832,7 +907,9 @@ void dump_bytecode(unsigned char *bytecode, int length) {
 				i++;
 				n += bytecode[i];
 				printf("jump if zero(2) %d\n", n);
-			break;
+				break;
+			default:
+				printf("Unknown instruction (id: %i)\n", bytecode[i]);
 		}
 	}
 }
@@ -957,7 +1034,7 @@ int run(int *memory, unsigned char *bytecode) {
 		> -1 - turn 1 errored out (player 1 lost the game, end of game)
 		> -2 - turn 2 errored out (player 2 lost the game, end of game)
 		> -3 - both turns errored out (draw, end of game)
-		> -100 - invalid turns, valid turns: are defined in TURN_ROCK, TURN_PAPER, TURN_SCISSORS, TURN_ERROR or undefined combination (shouldn't happen)
+		> -100 - invalid turns, (valid turns are defined in TURN_ROCK, TURN_PAPER, TURN_SCISSORS, TURN_ERROR) or undefined combination (shouldn't happen)
 */
 int who_won_round(char turn1, char turn2) {
 	if (turn1 != TURN_ROCK && turn1 != TURN_PAPER && turn1 != TURN_SCISSORS && turn1 != TURN_ERROR) return -100;
@@ -1342,10 +1419,11 @@ int main(int argc, char **argv) {
 		#ifdef DEBUG
 			int i = 0;
 			while (bytecode[i] != INST_NULL) { i++; };
+			printf("[DEBUG] Successfully compiled program! Bytecode:\n");
 			dump_bytecode(bytecode, i);
 		#endif
 
-		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu, 'e' pre vzdanie sa alebo `!` pre ukončenie hry.\n");
+		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu, 'e' (Error) pre vzdanie sa alebo `!` pre ukončenie hry.\n");
 		printf("(Hrá sa %i kôl)\n> ", roundc);
 
 		/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
@@ -1378,7 +1456,7 @@ int main(int argc, char **argv) {
 				break;
 			}
 			else { 
-				printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu, 'e' pre vzdanie sa alebo `!` pre ukoncenie hry.\n", play_char); 
+				printf("Neznamy tah `%c`, platne tahy su: `k`, `p` alebo `n` pre zahranie tahu, 'e' (Error) pre vzdanie sa alebo `!` pre ukoncenie hry.\n", play_char); 
 				round_i--; // Nepocitajme to ako tah
 				continue; 
 			}
@@ -1422,7 +1500,7 @@ int main(int argc, char **argv) {
 				case -100:
 					printf("Achevement get: How did we get here? (this should never happen: Unknown move or move combination: %c, %c).", play, bot_play); break;
 				default:
-					printf("TODO BY SA NIKDY NEMALO STAŤ, PROSÍM KONTAKTUJ DEVELOPERA: who_won_round() returned unexpected code: `%i`.", result); break;
+					printf("TOTO BY SA NIKDY NEMALO STAŤ, PROSÍM KONTAKTUJ DEVELOPERA: who_won_round() returned unexpected code: `%i`.", result); break;
 			}
 			if (score_human == -1 || score_program == -1)
 				printf(" Skore: Ty: %i, Program: %i\n", score_human, score_program);
