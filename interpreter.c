@@ -288,7 +288,7 @@ int read_char(ProgramReader *reader, char target) {
 	c = ProgramReader_fgetc(reader);
 	if (c == EOF) return 0;
 	if (c == target) {
-		if (target != ' ') read_whitespace(reader);
+		read_whitespace(reader);
 		return 1;
 	}
 	ProgramReader_ungetc(c,reader);
@@ -1122,36 +1122,7 @@ bool doesFileExist(const char* filename) {
 	return !access(filename, F_OK);
 }
 
-int ensureDirectoryExists(char* filename) {
-	char dirname[MAX_OUTPUT_FILE_NAME_LENGHT];
-	int slash_pos = -1;
-	int i = 0;
-	while (filename[i] != '\0') {
-		if (filename[i] == PATH_SEPARATOR) {
-			slash_pos = i;
-			strncpy(dirname, filename, slash_pos);
-			DIR* dir = opendir(dirname);
-			if (!dir) {
-				int result = mkdir(dirname, 0777);
-				if (result == -1) {
-					closedir(dir);
-					return -1;
-				}
-			}
-			closedir(dir);
-		}
-		i++;
-	}
-	return 0;
-}
-
-int makeFilenameUnique(char* filename, bool disable_log) {
-	if (ensureDirectoryExists(filename) == -1) {
-		#ifdef DEBUG
-			printf("Failed to ensure directory exists. (probably due to only being able to check and create one-level-deep directories)\nCreate the directory and try again.\n");
-		#endif
-		return 1;
-	}
+int makeFilenameUnique(char* filename) {
 	if (!doesFileExist(filename)) return 0;
 	#ifdef DEBUG
 		printf("Creating unique filename from: `%s`\n", filename);
@@ -1208,10 +1179,10 @@ int makeFilenameUnique(char* filename, bool disable_log) {
 	return -1;
 }
 
-int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file_template, char* output_file, int* scores, bool disable_log) {
+int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_data, const char* output_file_template, char* output_file, int* scores) {
 	if (strlen(output_file_template) > MAX_OUTPUT_FILE_NAME_LENGHT) {printf("output_file_raw too long, max %i", MAX_OUTPUT_FILE_NAME_LENGHT); return -1;}
 	strcpy(output_file, output_file_template);
-	makeFilenameUnique(output_file, disable_log);
+	makeFilenameUnique(output_file);
 
 	get_scores_from_game(roundc, turn_data, scores);
 	FILE *file;
@@ -1245,7 +1216,6 @@ int save_gamedata(const char* name1, const char* name2, int roundc, char* turn_d
 const char HELP_MSG[] = "\nUsage: ./interpreter [flags] file(s)\n"
 						"Flags:\n"
 						" --help / -h: Print this message and exit\n\n"
-						" --no-log: (has no effect in manual mode or with DEBUG enabled) Disable all log messages except for final score and error messages"
 						" --output / -o: Output file name (.txt extension is reccomended), default: `game_replay/game.txt`\n"
 						"                Note: Output file will never overwrite another, it will always be made unique by adding #[number] to it (e.g.: game.txt -> game#2.txt)\n"
 						"                Warning: Try to not do weird things with paths (e.g.: ~/../home/Documents/../Pictures/g.txt), this wasn't tested properly (yet)\n\n"
@@ -1270,7 +1240,6 @@ int main(int argc, char **argv) {
 	const char *DEFAULT_PLAYER1_NAME = "player1";
 	const char *DEFAULT_PLAYER2_NAME = "player2";
 
-	bool DISABLE_LOG = false;
 	int filename_arg_i = -1;
 	int filename2_arg_i = -1;
 	int player1_name_arg_i = -1;
@@ -1321,9 +1290,6 @@ int main(int argc, char **argv) {
 				}
 				output_file_arg_i = arg_i + 1;
 				arg_i++;
-				continue;
-			} else if (strcmp(argv[arg_i], "--no-log") == 0) {
-				DISABLE_LOG = true;
 				continue;
 			} else {
 				printf("Error: Unknown flag `%s`\n\n", argv[arg_i]);
@@ -1424,7 +1390,7 @@ int main(int argc, char **argv) {
 		#endif
 
 		printf("Teraz mozes hrat proti tvojmu botovi. Napis na vstup znak `k`, `p` alebo `n` pre zahranie tahu, 'e' (Error) pre vzdanie sa alebo `!` pre ukončenie hry.\n");
-		printf("(Hrá sa %i kôl)\n> ", roundc);
+		printf("(Hra sa %i kol)\n> ", roundc);
 
 		/* na zaciatku sa v predoslom kole nehralo nic, takze to chcem byt nieco ine jak 0,1,2 */
 		memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
@@ -1499,8 +1465,6 @@ int main(int argc, char **argv) {
 					break;
 				case -100:
 					printf("Achevement get: How did we get here? (this should never happen: Unknown move or move combination: %c, %c).", play, bot_play); break;
-				default:
-					printf("TOTO BY SA NIKDY NEMALO STAŤ, PROSÍM KONTAKTUJ DEVELOPERA: who_won_round() returned unexpected code: `%i`.", result); break;
 			}
 			if (score_human == -1 || score_program == -1)
 				printf(" Skore: Ty: %i, Program: %i\n", score_human, score_program);
@@ -1530,7 +1494,7 @@ int main(int argc, char **argv) {
 		char output_file_unique[MAX_OUTPUT_FILE_NAME_LENGHT + 10]; // Tu sa zapise jedinecny nazov suboru
 		/* Poznamka: Pouzivame round_i namiesto roundc, lebo ked ukoncime hru predcasne mame len round_i odohranych kol */
 		int scores[2];
-		int result = save_gamedata(player1_name, player2_name, round_i, turn_data, output_file, output_file_unique, scores, false);
+		int result = save_gamedata(player1_name, player2_name, round_i, turn_data, output_file, output_file_unique, scores);
 
 		if (result == 0) // Success
 			printf("Hra bola ulozena do: `%s`", output_file_unique);
@@ -1605,7 +1569,7 @@ int main(int argc, char **argv) {
 
 		char output_file_unique[MAX_OUTPUT_FILE_NAME_LENGHT + 10]; // Tu sa zapise jedinecny nazov suboru
 		int scores[2];
-		save_gamedata(player1_name, player2_name, roundc, turn_data, output_file, output_file_unique, scores, DISABLE_LOG);
+		save_gamedata(player1_name, player2_name, roundc, turn_data, output_file, output_file_unique, scores);
 		
 		printf("%i %i", scores[0], scores[1]);
 
