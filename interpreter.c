@@ -133,6 +133,8 @@
 #define TURN_SCISSORS 2
 #define TURN_ERROR 3
 
+#define VARIABLE_UNINITIALIZED -6767
+
 /* Vyzera to strasne divne, read more: https://stackoverflow.com/questions/62957620/function-pointer-in-struct-taking-the-struct-as-argument-in-c */
 typedef struct {
 	FILE *stream;
@@ -293,6 +295,24 @@ int read_char(ProgramReader *reader, char target) {
 	}
 	ProgramReader_ungetc(c,reader);
 	return 0;
+}
+
+int read_string(ProgramReader *reader, const char* str) {
+	int i;
+	char c;
+	for (i = 0; str[i] != '\0'; i++) {
+		c = ProgramReader_fgetc(reader);
+		if (c != str[i]) {
+			if (c != EOF) {
+				ProgramReader_ungetc(c, reader);
+			};
+			for (i--; i >= 0; i--) {
+				ProgramReader_ungetc(str[i], reader);
+			};
+			return 0;
+		}
+	}
+	return 1;
 }
 
 int read_keyword(ProgramReader *reader, char *keyword) {
@@ -530,6 +550,12 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 		else compile_error(reader, "Klucove slovo `minule` musi byt nasledovane menom tahu: `kamen`, `papier` alebo `noznice`", true);
 		write_instruction(writer, INST_EQUAL);
 	}
+	/* alebo unarna negacia (musi byt pred nacitanim premennej aby sa keyword 'not' nepovazoval za premennu) */
+	else if (read_char(reader, '!') || read_keyword(reader, "not") || read_keyword(reader, "nie")) {
+		parse_expression(reader, writer, variable_names);
+		// operator_stack_pop_until(&operator_stack, writer, OP_NOT);
+		operator_stack_push(&operator_stack, OP_NOT);
+	}
 	/* ...alebo premenna. */
 	else if (read_word(reader, variable_name)) {
 		int variable_id;
@@ -610,21 +636,17 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 			operator_stack_push(&operator_stack, OP_GREATER_THAN);
 		}
 	}
-	else if (read_keyword(reader, "||") || read_keyword(reader, "or") || read_keyword(reader, "alebo")) {
+	else if (read_string(reader, "||") || read_keyword(reader, "or") || read_keyword(reader, "alebo")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
 		operator_stack_push(&operator_stack, OP_OR);
 	}
-	else if (read_keyword(reader, "&&") || read_keyword(reader, "and") || read_keyword(reader, "aj")) {
+	else if (read_string(reader, "&&") || read_keyword(reader, "and") || read_keyword(reader, "aj")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
 		operator_stack_push(&operator_stack, OP_AND);
 	}
-	else if (read_keyword(reader, "!=")) {
+	else if (read_string(reader, "!=")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
 		operator_stack_push(&operator_stack, OP_NOT_EQUAL);
-	}
-	else if (read_keyword(reader, "!") || read_keyword(reader, "not") || read_keyword(reader, "nie")) {
-		operator_stack_pop_until(&operator_stack, writer, OP_NOT);
-		operator_stack_push(&operator_stack, OP_NOT);
 	}
 
 	/* TODO: pridat sem nejaky else-if ze ak vidime otvarajucu zatvorku, tak vyhlasime
@@ -640,94 +662,7 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 
 	end:
 	if (open_bracket_count > 0) compile_error(reader, "nezatvorena zatvorka", true);
-	operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_ADD_SUBTRACT);
-}
-
-void parse_condition(ProgramReader *reader, BytecodeWriter *writer, char *variable_names) {
-	OperatorStack operator_stack;
-	int open_bracket_count;
-
-	operator_stack.top = 0;
-	operator_stack.buffer[0] = OP_BEGIN_GROUP;
-	open_bracket_count = 0; /* pocet zatvoriek, co zatial zacali a este neskoncili */
-
-	/* Tu sa nachadzame pred hodnotou, takze tam moze byt `nie` a zaciatok zatvorky. */
-	before_value:
-	if (read_keyword(reader, "nie")) operator_stack_push(&operator_stack, OP_NOT);
-	if (read_char(reader, '(')) {
-		open_bracket_count++;
-		operator_stack_push(&operator_stack, OP_BEGIN_GROUP);
-		goto before_value;
-	}
-
-	/* Teraz ide samotna hodnota, co je bud `minule CO_ZAHRAL_HRAC` alebo VYRAZ POROVNANIE VYRAZ`. */
-	// if (read_keyword(reader, "minule")) {
-	// 	write_instruction(writer, INST_LOAD);
-	// 	write_instruction(writer, ADDRESS_OPPONENTS_LAST_PLAY);
-	// 	write_instruction(writer, INST_PUSH);
-	// 	if (read_keyword(reader, "kamen")) write_instruction(writer, 0);
-	// 	else if (read_keyword(reader, "papier")) write_instruction(writer, 1);
-	// 	else if (read_keyword(reader, "noznice")) write_instruction(writer, 2);
-	// 	else compile_error(reader, "minule akceptuje len meno tahu: kamen, papier alebo noznice", true);
-	// 	write_instruction(writer, INST_EQUAL);
-	// }
-	// else {
-		/* Inak tu musi byt porovnanie */
-		int comparison;
-		parse_expression(reader, writer, variable_names);
-		// if (read_char(reader, '<')) {
-		// 	if (read_char(reader, '=')) comparison = INST_LESS_EQUAL;
-		// 	else comparison = INST_LESS_THAN;
-		// }
-		// else if (read_char(reader, '>')) {
-		// 	if (read_char(reader, '=')) comparison = INST_GREATER_EQUAL;
-		// 	else comparison = INST_GREATER_THAN;
-		// }
-		// else if (read_char(reader, '=')) {
-		// 	read_char(reader, '='); // Just in case ze niekto pouziva `==` namiesto `=`
-		// 	comparison = INST_EQUAL;
-		// }
-		// else {
-		// 	/* posunut momentalny znak tak aby v chybovej hlaske ukazoval na porovnavac; momentalne nefunkcne pre `ak (1 -- 1)`*/
-		// 	// ProgramReader_move_discardchars(reader, 2);
-		// 	compile_error(reader, "tu by malo byt porovnanie, teda < <= > alebo >=", true);
-		// };
-		// parse_expression(reader, writer, variable_names);
-		write_instruction(writer, INST_PUSH);
-		write_instruction(writer, 1);
-		write_instruction(writer, INST_GREATER_EQUAL);
-	// }
-
-	/* Tu moze byt koniec zatvorky alebo operacia alebo koniec */
-	after_value:
-	if (read_char(reader, ')')) {
-		if (open_bracket_count == 0) compile_error(reader, "navyse zatvarajuca zatvorka", true);
-		operator_stack_pop_until(&operator_stack, writer, OP_OR);
-		operator_stack.top--;
-		open_bracket_count--;
-		goto after_value;
-	}
-
-	if (read_keyword(reader, "aj")) {
-		operator_stack_pop_until(&operator_stack, writer, OP_AND);
-		operator_stack_push(&operator_stack, OP_AND);
-	}
-	else if (read_keyword(reader, "alebo")) {
-		operator_stack_pop_until(&operator_stack, writer, OP_OR);
-		operator_stack_push(&operator_stack, OP_OR);
-	}
-	/* TODO: ak napises `a` miesto `aj` (co sa mi celkom stava),
-		tak momentalne to iba assumuje ze je koniec, ale chcelo by to nejaky lepsi error reporting.
-		Ono v tomto pripade koniec je aj tak len ked je koniec riadku,
-		tak tu by to poradie checkovania mohlo byt reverznute */
-	/* ak sa nam nepodarilo nacitat operator tak uz je koniec */
-	else goto end;
-	/* ak sa nam naopak podarilo nacitat operator tak sme zase pred operandom */
-	goto before_value;
-
-	end:
-	if (open_bracket_count > 0) compile_error(reader, "nezatvorena zatvorka", true);
-	operator_stack_pop_until(&operator_stack, writer, OP_OR);
+	operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
 }
 
 /* vrati dlzku bytecodu, co je uzitocne asi len na debugovanie
@@ -785,9 +720,12 @@ int compile(FILE *stream, int *memory, unsigned char *bytecode) {
 		strcpy(&variable_names[variable_count * MAX_VARIABLE_LENGTH], name);
 		if (!read_char(&reader, '='))
 			compile_error(&reader, "za premennou musi byt =", true);
-		if (!read_number(&reader, &value))
-			compile_error(&reader, "premenna musi byt nastavena na nejake cislo", true);
-		memory[variable_count] = value;
+		// if (!read_number(&reader, &value))
+		// 	compile_error(&reader, "premenna musi byt nastavena na nejake cislo", true);
+		memory[variable_count] = VARIABLE_UNINITIALIZED;
+		parse_expression(&reader, &writer, variable_names);
+		write_instruction(&writer, INST_STORE);
+		write_instruction(&writer, variable_count);
 		variable_count++;
 		if (!read_new_line(&reader))
 			compile_error(&reader, "za hodnotou premennej musi byt koniec riadku", true);
