@@ -90,10 +90,11 @@
 #define INST_OR              19
 #define INST_AND             20
 #define INST_NOT             21
+#define INST_XOR             22
 /* JUMP_IF_ZERO: zoberieme cislo zo stacku a ak je to 0, tak skocime na take miesto
 	v programe, ako hovori parameter. Je iba verzia s 2 parametrami, lebo ked piseme
 	tu instrukciu, tak nevieme dopredu, ako daleko bude ten if koncit. */
-#define INST_JUMP_IF_ZERO_2  22
+#define INST_JUMP_IF_ZERO_2  23
 
 /* NULL: defaultná hodnota bytecode bufferu, neicializovaná hodnota, keď ju prečítame vieme ze program skončil */
 #define INST_NULL            127
@@ -110,23 +111,24 @@
 #define OP_OR            1
 #define OP_AND           2
 #define OP_NOT           3
-#define OP_EQUAL         4
-#define OP_NOT_EQUAL     5
-#define OP_LESS_THAN     6
-#define OP_LESS_EQUAL    7
-#define OP_GREATER_THAN  8
-#define OP_GREATER_EQUAL 9
-#define OP_ADD           10
-#define OP_SUBTRACT      11
-#define OP_UNARY_MINUS   12
-#define OP_MULTIPLY      13
-#define OP_DIVIDE        14
-#define OP_MODULO        15
+#define OP_XOR           4
+#define OP_EQUAL         5
+#define OP_NOT_EQUAL     6
+#define OP_LESS_THAN     7
+#define OP_LESS_EQUAL    8
+#define OP_GREATER_THAN  9
+#define OP_GREATER_EQUAL 10
+#define OP_ADD           11
+#define OP_SUBTRACT      12
+#define OP_UNARY_MINUS   13
+#define OP_MULTIPLY      14
+#define OP_DIVIDE        15
+#define OP_MODULO        16
 
 #define PRECEDENCE_LOGICAL_OP 1
-#define PRECEDENCE_COMPARE 4
-#define PRECEDENCE_ADD_SUBTRACT 10
-#define PRECEDENCE_MULTIPLY_DIVIDE 12
+#define PRECEDENCE_COMPARE 5
+#define PRECEDENCE_ADD_SUBTRACT 11
+#define PRECEDENCE_MULTIPLY_DIVIDE 13
 
 #define TURN_ROCK 0
 #define TURN_PAPER 1
@@ -468,6 +470,7 @@ void operator_stack_pop_until(OperatorStack *stack, BytecodeWriter *writer, int 
 			case OP_NOT:          write_instruction(writer, INST_NOT);          break;
 			case OP_AND:          write_instruction(writer, INST_AND);          break;
 			case OP_OR:           write_instruction(writer, INST_OR);           break;
+			case OP_XOR:          write_instruction(writer, INST_XOR);          break;
 			case OP_EQUAL: 	      write_instruction(writer, INST_EQUAL);        break;
 			case OP_GREATER_THAN: write_instruction(writer, INST_GREATER_THAN); break;
 			case OP_GREATER_EQUAL:write_instruction(writer, INST_GREATER_EQUAL);break;
@@ -647,6 +650,9 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 	else if (read_string(reader, "!=")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
 		operator_stack_push(&operator_stack, OP_NOT_EQUAL);
+	} else if (read_char(reader, '^') || read_keyword(reader, "xor")) {
+		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
+		operator_stack_push(&operator_stack, OP_XOR);
 	}
 
 	/* TODO: pridat sem nejaky else-if ze ak vidime otvarajucu zatvorku, tak vyhlasime
@@ -852,6 +858,11 @@ void dump_bytecode(unsigned char *bytecode, int length) {
 	}
 }
 
+int to_bool(int num) {
+	// Why do it like this? Source: https://stackoverflow.com/questions/39730583/return-value-of-a-boolean-expression-in-c?utm_source=gemini
+	return num != 0;
+}
+
 int run(int *memory, unsigned char *bytecode) {
 	int stack[STACK_SIZE];
 	int stack_length;
@@ -952,6 +963,9 @@ int run(int *memory, unsigned char *bytecode) {
 			case INST_NOT:
 				stack[stack_length - 1] = !stack[stack_length - 1];
 			break;
+			case INST_XOR:
+				stack_length--;
+				stack[stack_length - 1] = to_bool(stack[stack_length - 1]) ^ to_bool(stack[stack_length]);
 			case INST_JUMP_IF_ZERO_2:
 				n = bytecode[i++] << 8;
 				n += bytecode[i++];
