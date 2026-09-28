@@ -16,8 +16,8 @@ The Program section is executed on every turn.
 Init section will be executed once on init (surprise!). 
 Init section only contains variable definitions. All variables are global. Syntax for variable definition is:
 `nech NAME = EXPRESSION`
-`NAME` is a unique identifier of the variable. It can contain letters and digits. It cannot start with a digit and it cannot match a keyword or existing variable name (including predefined variables).
-Regex for valid variable name is: `/[a-zA-Z]([a-zA-Z0-9]*)/`
+`NAME` is a unique identifier of the variable. It can contain letters, digits and underscore. It cannot start with a digit and it cannot match a keyword or existing variable name (including predefined variables).
+Regex for valid variable name is: `/[a-zA-Z_]([a-zA-Z0-9_]*)/`
 `EXPRESSION` is a valid expression, it can utilize already defined variables
 
 Example:

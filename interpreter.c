@@ -253,7 +253,7 @@ int read_word(ProgramReader *reader, char *dest) {
 	int c;
 	success = 1;
 	c = ProgramReader_fgetc(reader);
-	if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) {
+	if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')) {
 		success = 0;
 		goto end;
 	}
@@ -383,7 +383,7 @@ int read_keyword(ProgramReader *reader, char *keyword) {
 	if (c != EOF) {
 		ProgramReader_ungetc(c, reader);
 	}
-	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
 		for (i--; i >= 0; i--) {
 			ProgramReader_ungetc(keyword[i], reader);
 		};
@@ -1053,6 +1053,10 @@ int run(int *memory, unsigned char *bytecode) {
 			break;
 			case INST_DIVIDE:
 				stack_length--;
+				if (stack[stack_length] == 0) {
+					printf("Division by zero: Halting.\n");
+					return TURN_ERROR;
+				}
 				stack[stack_length - 1] = stack[stack_length - 1] / stack[stack_length];
 			break;
 			case INST_MODULO:
