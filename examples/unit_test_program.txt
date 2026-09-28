@@ -1,0 +1,84 @@
+# Unit tests for parser
+# Note: you need to run this with DEBUG enabled to be able to use `!debug`
+
+# individual operations
+!debug assert 1
+
+!debug assert 1 == 1
+!debug assert 0 == 0
+!debug assert (1 == 0) == 0
+!debug assert ((1 == 1) == 0) == 0
+
+!debug assert 1 + 1 == 2
+
+!debug assert 2 - 1 == 1
+!debug assert 1 - 2 == -1
+!debug assert 1--1 == 2 
+
+!debug assert 2 * 2 == 4
+!debug assert 2 * -2 == -4
+!debug assert 2 * (-2) == -4
+!debug assert (-2) * (-2) == 4
+
+!debug assert 2 / 1 == 2
+!debug assert 5 / 2 == 2
+!debug assert 99 / 10 == 9
+!debug assert -1 / 1 == -1
+!debug assert -1 / -1 == 1
+!debug assert 2 / 2 == 1
+!debug assert 0 / 1 == 0
+
+!debug assert 10 % 3 == 1
+!debug assert -10 % 3 == -1
+!debug assert 0 % 1 == 0
+
+!debug assert 1 >= 1
+!debug assert -1 >= -2
+
+!debug assert 2 > 1
+
+!debug assert 1 <= 1
+!debug assert -2 <= -1
+
+!debug assert 1 < 2
+
+!debug assert 2 != 1
+!debug assert (2 == 2) != (2 == 1)
+
+!debug assert 1 && 1
+!debug assert 2 && 5
+!debug assert (2 && 0) == 0
+!debug assert 1 aj 1
+!debug assert 1 and 1
+
+!debug assert 1 || 0
+!debug assert 0 || 1
+!debug assert 1 || 1
+!debug assert (0 || 0) == 0
+!debug assert 1 || 2
+!debug assert 1 alebo 0
+!debug assert 1 or 0
+
+!debug assert !0
+!debug assert not 0
+!debug assert nie 0
+!debug assert !!1
+
+!debug assert 0 ^ 1
+!debug assert 1 ^ 0
+!debug assert !(1 ^ 1)
+!debug assert !(0 ^ 0)
+!debug assert 1 xor 0
+
+
+# and random stuff
+
+!debug assert (1 + 1) == 2
+!debug assert (1 + 10) * 2 == 22
+!debug assert 2 + 1 * 6 == 8
+!debug assert 6 % 4 == 2
+!debug assert (1) == true
+
+
+program:
+zahraj kamen
