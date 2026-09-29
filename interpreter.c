@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 // Source - https://stackoverflow.com/q/9230554
 #if defined(_WIN32) || defined(WIN32)
@@ -345,12 +346,12 @@ int read_char(ProgramReader *reader, char target) {
 
 int read_string(ProgramReader *reader, const char* str) {
 	int i;
-	char c;
+	int c;
 	for (i = 0; str[i] != '\0'; i++) {
 		c = ProgramReader_fgetc(reader);
-		if (c != str[i]) {
+		if ((u_char)c != str[i]) {
 			if (c != EOF) {
-				ProgramReader_ungetc(c, reader);
+				ProgramReader_ungetc((u_char)c, reader);
 			};
 			for (i--; i >= 0; i--) {
 				ProgramReader_ungetc(str[i], reader);
@@ -364,12 +365,12 @@ int read_string(ProgramReader *reader, const char* str) {
 
 int read_keyword(ProgramReader *reader, char *keyword) {
 	int i;
-	char c;
+	int c;
 	for (i = 0; keyword[i] != '\0'; i++) {
 		c = ProgramReader_fgetc(reader);
-		if (c != keyword[i]) {
+		if ((u_char)c != keyword[i]) {
 			if (c != EOF) {
-				ProgramReader_ungetc(c, reader);
+				ProgramReader_ungetc((u_char)c, reader);
 			};
 			for (i--; i >= 0; i--) {
 				ProgramReader_ungetc(keyword[i], reader);
@@ -381,7 +382,7 @@ int read_keyword(ProgramReader *reader, char *keyword) {
 		ci nahodou to slovo nepokracuje dalej, kedy by sa to neratalo */
 	c = ProgramReader_fgetc(reader);
 	if (c != EOF) {
-		ProgramReader_ungetc(c, reader);
+		ProgramReader_ungetc((u_char)c, reader);
 	}
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
 		for (i--; i >= 0; i--) {
@@ -407,21 +408,21 @@ int read_new_line(ProgramReader *reader) {
 	while (1) {
 		c = ProgramReader_fgetc(reader);
 		/* ak vidime komentar, tak citame az do konca riadku */
-		if (c == '#') {
+		if ((u_char)c == '#') {
 			do {
 				c = ProgramReader_fgetc(reader);
-			} while (c != '\n' && c != EOF);
+			} while ((u_char)c != '\n' && c != EOF);
 			success = 1;
 		}
 		/* ak sme naposledy precitali novy riadok, tak si pamatame ze ho mame */
-		if (c == '\n') {
+		if ((u_char)c == '\n') {
 			success = 1;
 			read_whitespace(reader);
 		}
 		/* ak tam je iny znak alebo koniec vstupu, tak skoncime */
 		else {
 			if (c != EOF) {
-				ProgramReader_ungetc(c, reader);
+				ProgramReader_ungetc((u_char)c, reader);
 			};
 			return success || c == EOF;
 		}
@@ -433,14 +434,14 @@ void compile_error(ProgramReader *reader, char *message, bool show_help_message)
 	printf("Chyba pri kompilacii, riadok %d, znak %d: %s\n", reader->line_number, reader->character_number, message);
 	if (show_help_message) {
 		rewind(reader->stream);
-		char c = 'a';
+		int c = 'a';
 		int curr_line = 1;
 		while (c != EOF && curr_line < reader->line_number) {
-			if (c == '\n') curr_line++;
+			if ((u_char)c == '\n') curr_line++;
 			c = fgetc(reader->stream);
 		}
-		while (c != '\n' && c != EOF) {
-			printf("%c", c);
+		while ((u_char)c != '\n' && c != EOF) {
+			printf("%c", (u_char)c);
 			c = fgetc(reader->stream);
 		}
 		printf("\n");
@@ -458,9 +459,10 @@ void compile_error(ProgramReader *reader, char *message, bool show_help_message)
 	TODO: overflow check a tiez check ze nenasleduju rovno za cislicami pismena */
 int read_number(ProgramReader *reader, int *dest) {
 	int success;
-	char c;
+	int c;
 	success = 1;
 	c = ProgramReader_fgetc(reader);
+	if (c == EOF) return 0;
 	if (c < '0' || c > '9') {
 		success = 0;
 		*dest = -1;
@@ -473,7 +475,7 @@ int read_number(ProgramReader *reader, int *dest) {
 		c = ProgramReader_fgetc(reader);
 	} while (c >= '0' && c <= '9');
 	end:
-	if (c != EOF) ProgramReader_ungetc(c, reader);
+	if (c != EOF) ProgramReader_ungetc((u_char)c, reader);
 	read_whitespace(reader);
 	return success;
 }
@@ -493,6 +495,7 @@ int variable_id_by_name(ProgramReader *reader, char *variable_names, char *name)
 		printf("Unknown variable name: %s\n", name);
 	#endif
 	compile_error(reader, "neznamy nazov premennej", true);
+	return -1;
 }
 
 /* TODO: pocitat si kolko by sme na to potrebovali stack spaceu pocas runtimeu,
