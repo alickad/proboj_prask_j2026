@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 
 // Source - https://stackoverflow.com/q/9230554
+// Edit: what? this is not relevant at all. ??
 #if defined(_WIN32) || defined(WIN32)
 
 #define PATH_SEPARATOR '\\'
@@ -501,14 +502,26 @@ int variable_id_by_name(ProgramReader *reader, char *variable_names, char *name)
 
 /* TODO: pocitat si kolko by sme na to potrebovali stack spaceu pocas runtimeu,
 	aby sme vedeli garantovat ze ked sa to skompiluje tak to bude ok. */
-void operator_stack_push(OperatorStack *stack, int item) {
+int operator_stack_push(OperatorStack *stack, int item) {
+	#ifdef DEEP_DEBUG
+		printf("[DEEP DEBUG] operator_stack_push(): pushing %i\n", item);
+	#endif
 	stack->top++;
-	/* TODO: checknut overflow */
+	if (stack->top >= MAX_OPERATOR_STACK_SIZE)
+		return EOF;
 	stack->buffer[stack->top] = item;
+	return stack->top;
 }
 
 void operator_stack_pop_until(OperatorStack *stack, BytecodeWriter *writer, int precedence) {
+	#ifdef DEEP_DEBUG
+		int top_before = stack->top;
+		printf("[DEEP DEBUG] operator_stack_pop_until(): stack top: %i, precedence: %i\n", stack->top, precedence);
+	#endif
 	while (stack->buffer[stack->top] >= precedence) {
+		#ifdef DEEP_DEBUG
+			printf("[stack_top:%i] popping from op. stack: %i\n", stack->top, stack->buffer[stack->top]);
+		#endif
 		switch (stack->buffer[stack->top]) {
 			case OP_ADD:          write_instruction(writer, INST_ADD);          break;
 			case OP_SUBTRACT:     write_instruction(writer, INST_SUBTRACT);     break;
@@ -531,16 +544,20 @@ void operator_stack_pop_until(OperatorStack *stack, BytecodeWriter *writer, int 
 		}
 		stack->top--;
 	}
+	#ifdef DEEP_DEBUG
+		printf("[DEEP DEBUG] operator_stack_pop_until(): Popped %i operations\n", top_before - stack->top);
+	#endif
 }
 
 void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *variable_names) {
 	#ifdef DEEP_DEBUG
-		printf("[DEEP DEBUG] Parsing from line %i char %i\n", reader->line_number, reader->character_number);
+		printf("[DEEP DEBUG] Parsing expression from line %i char %i\n", reader->line_number, reader->character_number);
 	#endif
 	OperatorStack operator_stack;
 	int open_bracket_count;
 	int number;
 	char variable_name[MAX_VARIABLE_LENGTH];
+	int stack_push_result = 0;
 
 	/* TODO: updatenut tento komentar aby zodpovedal realite
 
@@ -568,10 +585,13 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 	/* Tu sa vo vyraze nachadzame pred nejakou hodnotou, teda tam moze byt unarne minus
 		a zaciatky zatvoriek. */
 	before_value:
-	if (read_char(reader, '-')) operator_stack_push(&operator_stack, OP_UNARY_MINUS);
+	if (read_char(reader, '-')) 
+		stack_push_result = operator_stack_push(&operator_stack, OP_UNARY_MINUS);
 	if (read_char(reader, '(')) {
 		open_bracket_count++;
-		operator_stack_push(&operator_stack, OP_BEGIN_GROUP);
+		stack_push_result = operator_stack_push(&operator_stack, OP_BEGIN_GROUP);
+		if (stack_push_result == EOF)
+			compile_error(reader, "Stack overflow, (probably too many operations)", true);
 		goto before_value;
 	}
 
@@ -609,7 +629,7 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 	else if (read_char(reader, '!') || read_keyword(reader, "not") || read_keyword(reader, "nie")) {
 		parse_expression(reader, writer, variable_names);
 		// operator_stack_pop_until(&operator_stack, writer, OP_NOT);
-		operator_stack_push(&operator_stack, OP_NOT);
+		stack_push_result = operator_stack_push(&operator_stack, OP_NOT);
 	}
 	/* ...alebo premenna. */
 	else if (read_word(reader, variable_name)) {
@@ -647,28 +667,28 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 
 	if (read_char(reader, '+')) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_ADD_SUBTRACT);
-		operator_stack_push(&operator_stack, OP_ADD);
+		stack_push_result = operator_stack_push(&operator_stack, OP_ADD);
 	}
 	else if (read_char(reader, '-')) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_ADD_SUBTRACT);
-		operator_stack_push(&operator_stack, OP_SUBTRACT);
+		stack_push_result = operator_stack_push(&operator_stack, OP_SUBTRACT);
 	}
 	else if (read_char(reader, '*')) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_MULTIPLY_DIVIDE);
-		operator_stack_push(&operator_stack, OP_MULTIPLY);
+		stack_push_result = operator_stack_push(&operator_stack, OP_MULTIPLY);
 	}
 	else if (read_char(reader, '/')) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_MULTIPLY_DIVIDE);
-		operator_stack_push(&operator_stack, OP_DIVIDE);
+		stack_push_result = operator_stack_push(&operator_stack, OP_DIVIDE);
 	}
 	else if (read_char(reader, '%')) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_MULTIPLY_DIVIDE);
-		operator_stack_push(&operator_stack, OP_MODULO);
+		stack_push_result = operator_stack_push(&operator_stack, OP_MODULO);
 	}
 	else if (read_char(reader, '=')) {
 		if (read_char(reader, '=')) {
 			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
-			operator_stack_push(&operator_stack, OP_EQUAL);
+			stack_push_result = operator_stack_push(&operator_stack, OP_EQUAL);
 		} else {
 			compile_error(reader, "Unknown operation", true);
 		}
@@ -676,41 +696,42 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 	} else if (read_char(reader, '<')) {
 		if (read_char(reader, '=')) {
 			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
-			operator_stack_push(&operator_stack, OP_LESS_EQUAL);
+			stack_push_result = operator_stack_push(&operator_stack, OP_LESS_EQUAL);
 		} else {
 			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
-			operator_stack_push(&operator_stack, OP_LESS_THAN);
+			stack_push_result = operator_stack_push(&operator_stack, OP_LESS_THAN);
 		}
 
 	} else if (read_char(reader, '>')) {
 		if (read_char(reader, '=')) {
 			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
-			operator_stack_push(&operator_stack, OP_GREATER_EQUAL);
+			stack_push_result = operator_stack_push(&operator_stack, OP_GREATER_EQUAL);
 		} else {
 			operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
-			operator_stack_push(&operator_stack, OP_GREATER_THAN);
+			stack_push_result = operator_stack_push(&operator_stack, OP_GREATER_THAN);
 		}
 	}
 	else if (read_string(reader, "||") || read_keyword(reader, "or") || read_keyword(reader, "alebo")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
-		operator_stack_push(&operator_stack, OP_OR);
+		stack_push_result = operator_stack_push(&operator_stack, OP_OR);
 	}
 	else if (read_string(reader, "&&") || read_keyword(reader, "and") || read_keyword(reader, "aj")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
-		operator_stack_push(&operator_stack, OP_AND);
+		stack_push_result = operator_stack_push(&operator_stack, OP_AND);
 	}
 	else if (read_string(reader, "!=")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_COMPARE);
-		operator_stack_push(&operator_stack, OP_NOT_EQUAL);
+		stack_push_result = operator_stack_push(&operator_stack, OP_NOT_EQUAL);
 	}
 	else if (read_char(reader, '^') || read_keyword(reader, "xor")) {
 		operator_stack_pop_until(&operator_stack, writer, PRECEDENCE_LOGICAL_OP);
-		operator_stack_push(&operator_stack, OP_XOR);
+		stack_push_result = operator_stack_push(&operator_stack, OP_XOR);
 	}
 	else if (read_keyword(reader, "!") || read_keyword(reader, "not") || read_keyword(reader, "nie")) {
 		operator_stack_pop_until(&operator_stack, writer, OP_NOT);
-		operator_stack_push(&operator_stack, OP_NOT);
+		stack_push_result = operator_stack_push(&operator_stack, OP_NOT);
 	}
+	else goto end;
 
 	/* TODO: pridat sem nejaky else-if ze ak vidime otvarajucu zatvorku, tak vyhlasime
 		nejaku special case chybu ze tu nema byt. Lebo ocakavam ze deti mozno budu
@@ -718,7 +739,10 @@ void parse_expression(ProgramReader *reader, BytecodeWriter *writer, char *varia
 		lebo ak dovolime taketo implicitne nasobenie tak to robi bordel inde,
 		lebo neni jasne kedy je co nasobenie a kedy je to nieco ine. */
 	/* Ked sa nam nepodarilo nacitat ziadny operator, tak to berieme ako koniec vyrazu */
-	else goto end;
+
+	if (stack_push_result == EOF){
+		compile_error(reader, "Stack overflow, (probably too many operations) - (you won't find help for this on https://stackoverflow.com)", true);
+	}
 
 	/* Ak sa nam naopak podarilo nacitat operator, tak zase ma nasledovat hodnota. */
 	goto before_value;
