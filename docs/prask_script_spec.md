@@ -1,9 +1,11 @@
 # Prask Script language specification
-File extension: .psc or .txt(when windows freaks out)
+File extension: `.txt` _(any extension is fine as long as the file is a text file, but `.txt` is recommended for Windows)_
 
 Keywords: `program:` (directive), `nech`, `ak`, `koniec`, `zahraj`, `kamen`, `papier`, `noznice`, `minule kamen`, `minule papier`, `minule noznice`
 
 Predefined variables: `true`, `True`, `false`, `False`, `TOTAL_ROUNDS`
+
+Operation symbols: `(`, `)`, `!`, `not`, `nie`, `*`, `/`, `%`, `+`, `-`, `==`, `!=`, `>`, `>=`, `<`, `<=`, `&&`, `aj`, `and`, `xor`, `^`, `alebo`, `or`, `||`
 
 ## Source code sections
 
@@ -69,8 +71,10 @@ zahraj ITEM
 This immidiately halts the program and plays the specified turn.
 
 ## Predefined variables
-These variables carry data about the current game. All of them are set by the interpreter before Init or Program section is executed. If a variable is set before Program, it's behaviour in Init is undefined.
-**All predefined variables are read-only.**
+Prederined variables are constants (true, false) carry data about the current game. All of them are set by the interpreter before Init or Program section is executed.
+
+**Predefined variables are not read-only so don't mess them up!.**
+_(I was too lazy to implement read-only, and it's always more fun when you can make your code undebuggable!)_
 
 ### Basic constants
 *Set before Init*
@@ -89,38 +93,45 @@ TOTAL_ROUNDS
 Total number of rounds in a game
 
 ### Opponent's last turn
-*Set before Program*
+*Set before Init to -1, changes every turn*
 
-These variables change every time program section is executed and reflect opponent's choice in last round. If this is the first turn, all of them are set to -1.
+_(These are expressions that behave like read-only variables.)_
+
+Their value changes every time program section is executed and reflect opponent's choice in last round. If this is the first turn, all of them are set to `-1`.
+
 ```
 minule kamen
 ```
-1 if opponent played kamen last round, 0 otherwise
+`1` if opponent played kamen last round, `0` otherwise
+
 ```
 minule papier
 ```
-1 if opponent played papier last round, 0 otherwise
+`1` if opponent played papier last round, `0` otherwise\
+
 ```
 minule noznice
 ```
-1 if opponent played noznice last round, 0 otherwise
+`1` if opponent played noznice last round, `0` otherwise
 
-_Note: `minule` "variables" are internally handled as expressions, but you can treat them as read-only variables_
 
 ## Expressions
 Expression can perform mathematic operations on variables and constants. They must be written on one line. 
 
 Operations are evaluated in descending priority order, same-priority operations are evaluated left-to-right
 Operation priority:
-1. Parentheses: ()
-2. Logical NOT (!, not, nie)
-3. Multiplicative: Multiplication (*), Whole number division (/), Modulo (%), Unary minus (-_expr_)
-4. Additive: Addition (+), Subtraction (-)
-5. Comparison: Equal (==), Not equal (!=), Greater than (>), Greater than or equal (>=), Less than (<), Less than or equal (<=)
+1. Parentheses: `(`, `)`
+2. Logical NOT (`!`, `not`, `nie`)
+3. Multiplicative: Multiplication (`*`), Whole number division (`/`), Modulo (`%`), Unary minus (`-{expr}`)
+4. Additive: Addition (`+`), Subtraction (`-`)
+5. Comparison: Equal (`==`), Not equal (`!=`), Greater than (`>`), Greater than or equal (`>=`), Less than (`<`), Less than or equal (`<=`)
 6. Logical:
-   6.1 Logical AND (&&, aj, and)
-   6.2 Logical XOR (xor, ^)
-   6.3 Logical OR (alebo, or, ||)
+   
+   6.1 Logical AND (`&&`, `aj`, `and`)
+   
+   6.2 Logical XOR (`xor`, `^`)
+   
+   6.3 Logical OR (`alebo`, `or`, `||`)
 
 Supported mathematic operations:
 ### Basic operations:
@@ -132,20 +143,20 @@ Supported mathematic operations:
 - Modulo operation `A % B` - gives a remained of division A / B (always returns integer >=0)
 
 ### Comparison:
-All comparison operation return 1 if condition is true and 0 if it's not.
-- Equal `A == B` - returns 1 if A is equal to B, 0 otherwise
-- Not equal `A != B` - returns 1 if A is different to B, 0 otherwise (_Note: This operation is converted to !(A == B) in compile time_)
-- More than `A > B` - returns 1 if A is bigger than B, 0 otherwise
-- More than or equal `A >= B` - returns 1 if A is bigger or equal to B, 0 otherwise
-- Less than `A < B` - returns 1 if A is smaller than B, 0 otherwise
-- Less than or equal `A <= B` - returns 1 if A is smaller or equal to B, 0 otherwise
+All comparison operation return `1` if condition is true and `0` if it's not.
+- Equal `A == B` - returns `1` if A is equal to B, `0` otherwise
+- Not equal `A != B` - returns `1` if A is different to B, `0` otherwise (_Note: This operation is converted to !(A == B) in compile time_)
+- More than `A > B` - returns `1` if A is bigger than B, `0` otherwise
+- More than or equal `A >= B` - returns `1` if A is bigger or equal to B, `0` otherwise
+- Less than `A < B` - returns `1` if A is smaller than B, `0` otherwise
+- Less than or equal `A <= B` - returns `1` if A is smaller or equal to B, `0` otherwise
 
 ### Logical operations
-Before operation, all values are normalised to `1`_(true)_ and `0`_(false)_: values equal to 0 are considered `0`_(false)_, all other values are `1`_(true)_
-- AND - `A a B`, `A and B` or `A && B` - returns 1 if both A and B are true, 0 otherwise
-- OR - `A alebo B`, `A or B` or `A || B` - returns 1 if at least one of A and B is true, 0 otherwise
-- NOT - `nie A`, `not A` or `!A` - negate the value of A, returns 1 if A is false, 0 otherwise
-- XOR - `A xor B` or `A ^ B` - returns 1 if at exactly one of A and B is true, 0 otherwise
+Before operation, all values are normalised to `1`_(true)_ and `0`_(false)_: values equal to `0` are considered `0`_(false)_, all other values are `1`_(true)_
+- AND - `A a B`, `A and B` or `A && B` - returns `1` if both A and B are true, `0` otherwise
+- OR - `A alebo B`, `A or B` or `A || B` - returns `1` if at least one of A and B is true, `0` otherwise
+- NOT - `nie A`, `not A` or `!A` - negate the value of A, returns `1` if A is false, `0` otherwise
+- XOR - `A xor B` or `A ^ B` - returns `1` if at exactly one of A and B is true, `0` otherwise
 
 ### Parenthesis
 Parenthesis are used to give priority to certain operation.
@@ -154,7 +165,7 @@ Example: `(A + B) * C`
 In the example parenthesis give priority to addition over multiplication.
 
 ### Comments
-Prask scirpt supports full-line comments. Everyting after `#` charected up to newline characted is ignored
+Prask scirpt supports full-line comments. Everyting after `#` charecter up to newline character is ignored
 
 Syntax:
 ```praskscript
