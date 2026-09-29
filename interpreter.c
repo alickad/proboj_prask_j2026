@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 // Source - https://stackoverflow.com/q/9230554
 #if defined(_WIN32) || defined(WIN32)
@@ -142,6 +141,8 @@ tu instrukciu, tak nevieme dopredu, ako daleko bude ten if koncit. */
 #define TURN_ASSERT_FAILED 4
 
 #define VARIABLE_UNINITIALIZED -6767
+
+typedef unsigned char u_char;
 
 typedef struct {
 	FILE *stream;
