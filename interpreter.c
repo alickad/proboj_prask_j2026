@@ -1575,8 +1575,9 @@ int main(int argc, char **argv) {
 
 			bot_play = run(memory, program_bytecode);
 			if (bot_play == TURN_ERROR || bot_play == TURN_ASSERT_FAILED){
-				printf("Bot nezahral tah alebo chyboval, koniec hry.\n");
-				break;
+				bot_play = TURN_ERROR;
+				// printf("Bot nezahral tah alebo chyboval, koniec hry.\n");
+				// break;
 			}
 			int result = who_won_round(play, bot_play);
 			#ifdef DEBUG
