@@ -1698,8 +1698,8 @@ int main(int argc, char **argv) {
 			printf("Compiled sucessfully.\n");
 		#endif
 
-		program1_memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
-		program2_memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
+		program1_memory[ADDRESS_OPPONENTS_LAST_PLAY] = 0;
+		program2_memory[ADDRESS_OPPONENTS_LAST_PLAY] = 0;
 
 		int init_turn = run(program1_memory, program1_init_bytecode);
 		if (init_turn == TURN_ASSERT_FAILED) {

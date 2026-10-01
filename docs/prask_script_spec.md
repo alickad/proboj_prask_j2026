@@ -97,7 +97,7 @@ Total number of rounds in a game
 
 _(These are expressions that behave like read-only variables.)_
 
-Their value changes every time program section is executed and reflect opponent's choice in last round. If this is the first turn, all of them are set to `-1`.
+Their value changes every time program section is executed and reflect opponent's choice in last round. If this is the first turn, all of them are set to `0`.
 
 ```
 minule kamen
@@ -107,7 +107,7 @@ minule kamen
 ```
 minule papier
 ```
-`1` if opponent played papier last round, `0` otherwise\
+`1` if opponent played papier last round, `0` otherwise
 
 ```
 minule noznice

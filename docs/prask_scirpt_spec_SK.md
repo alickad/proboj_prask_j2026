@@ -96,7 +96,7 @@ Celkový počet kôl v hre
 
 *(Sú to výrazy, ktoré sa správajú ako premenné iba na čítanie.)*
 
-Ich hodnota sa mení pri každom vykonaní sekcie Program a odráža súperovu voľbu v poslednom kole. Ak ide o prvý ťah, všetky sú nastavené na `-1`.
+Ich hodnota sa mení pri každom vykonaní sekcie Program a odráža súperovu voľbu v poslednom kole. Ak ide o prvý ťah, všetky sú nastavené na `0`.
 
 ```
 minule kamen
