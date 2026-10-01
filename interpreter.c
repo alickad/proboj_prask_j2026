@@ -40,7 +40,7 @@
 #define MAX_LINE_LENGHT_TO_SHOW_ERROR_HELP 128
 
 /* Najvacsia povolena dlzka output file nazvu */
-#define MAX_OUTPUT_FILE_NAME_LENGHT 128
+#define MAX_OUTPUT_FILE_NAME_LENGHT 256
 
 /* Kolko miesta potrebujeme na nazvy vsetkych premennych,
 	teda MAX_VARIABLE_COUNT * MAX_VARIABLE_LENGTH */

@@ -1,0 +1,49 @@
+# --- Sekcia Init ---
+# Inicializujeme počítadlá pre súperove ťahy
+nech pocet_kamen = 0
+nech pocet_papier = 0
+nech pocet_noznice = 0
+
+# Pomocná premenná na sledovanie, či už prebehla prvá hra
+nech prvy_tah = 1
+
+program:
+# Aktualizujeme štatistiky podľa minulého ťahu súpera
+# minule_kamen, atď. vracajú 1 alebo 0
+ak minule kamen
+  pocet_kamen = pocet_kamen + 1
+koniec
+
+ak minule papier
+  pocet_papier = pocet_papier + 1
+koniec
+
+ak minule noznice
+  pocet_noznice = pocet_noznice + 1
+koniec
+
+# --- Logika stratégie ---
+# Hráme náhodne (alebo prvý ťah) ak nemáme dáta
+ak prvy_tah == 1
+  prvy_tah = 0
+  zahraj kamen
+koniec
+
+# Ak je súper predvídateľný, útočíme na jeho najčastejší ťah
+# Ak hral najčastejšie kameň, hráme papier
+ak (pocet_kamen >= pocet_papier) && (pocet_kamen >= pocet_noznice)
+  zahraj papier
+koniec
+
+# Ak hral najčastejšie papier, hráme nožnice
+ak (pocet_papier > pocet_kamen) && (pocet_papier >= pocet_noznice)
+  zahraj noznice
+koniec
+
+# Ak hral najčastejšie nožnice, hráme kameň
+ak (pocet_noznice > pocet_kamen) && (pocet_noznice > pocet_papier)
+  zahraj kamen
+koniec
+
+# Fallback (ak niečo zlyhá, hraj kameň)
+zahraj kamen

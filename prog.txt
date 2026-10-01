@@ -1,0 +1,14 @@
+nech tah = -1
+
+
+program:
+
+tah = tah + 1
+
+ak minule kamen
+zahraj noznice
+koniec
+
+
+
+

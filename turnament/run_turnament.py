@@ -155,7 +155,7 @@ for program1_i in range(len(program_paths)):
         # Use abspath so the interpreter writes it to the correct direcotry
         output_file = os.path.abspath(os.path.join(OUTPUT_DIR, f"match_{program1_name}_vs_{program2_name}.txt"))
         interpreter_dir = os.getcwd()
-        process_command = [f"{interpreter_dir}/{INTERPRETER_EXECUTABLE}", program1_path, program2_path, '-o', output_file, '-n', program1_name, program2_name, '--no-log']
+        process_command = [f"{interpreter_dir}/{INTERPRETER_EXECUTABLE}", program1_path, program2_path, '-o', output_file, '-n', program1_name, program2_name]
         if ROUNDS:
             process_command += ['-r', ROUNDS]
         
@@ -183,12 +183,13 @@ for programs, process in processes.items():
             continue
         log(f"Process {process.pid} success; Scores: {programs[0]}: {match_result[0]}, {programs[1]}: {match_result[1]}", color=['green', 'bold'])
         if match_result[0] < match_result[1]:
-            PROGRAM_SCORES[programs[1]] += 1
+            PROGRAM_SCORES[programs[1]] += 2
         elif match_result[0] > match_result[1]:
-            PROGRAM_SCORES[programs[0]] += 1
+            PROGRAM_SCORES[programs[0]] += 2
         else:
             # Draw
-            pass
+            PROGRAM_SCORES[programs[0]] += 1
+            PROGRAM_SCORES[programs[1]] += 1
 
 log("Done.", color=['green', 'bold'])
 log()
