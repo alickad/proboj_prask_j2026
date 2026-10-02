@@ -9,3 +9,7 @@ game_replay/*
 turnament/output
 
 **/scores.json
+
+.veduci_boti
+
+prog.txt
