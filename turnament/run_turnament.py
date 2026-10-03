@@ -26,7 +26,7 @@ def log(*msg, color=None):
 THIS_SCRIPT_DIR = os.path.dirname(__file__)
 
 ROUNDS = None
-DEFAULT_OUTPUT_DIR = os.path.join(THIS_SCRIPT_DIR, 'output')
+DEFAULT_OUTPUT_DIR = os.path.join(THIS_SCRIPT_DIR, 'output', 'round')
 OUTPUT_DIR = None
 OVERWRITE = False
 RELATIVE_PATHS = False
@@ -105,8 +105,13 @@ if len(arguments) != 2:
 
 if RELATIVE_PATHS:
     os.chdir(THIS_SCRIPT_DIR)
-if not OUTPUT_DIR:
+if (not OUTPUT_DIR) and OVERWRITE:
     OUTPUT_DIR = DEFAULT_OUTPUT_DIR
+elif not OUTPUT_DIR:
+    i = 1
+    while os.path.exists(DEFAULT_OUTPUT_DIR + str(i)):
+        i += 1
+    OUTPUT_DIR = DEFAULT_OUTPUT_DIR + str(i)
 
 # # Prevent path from being influenced by os.chdir
 # OUTPUT_DIR = os.path.abspath(OUTPUT_DIR)
