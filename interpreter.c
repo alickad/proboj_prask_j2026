@@ -1119,14 +1119,14 @@ int run(int *memory, unsigned char *bytecode) {
 			break;
 			case INST_OR:
 				stack_length--;
-				stack[stack_length - 1] = stack[stack_length - 1] || stack[stack_length];
+				stack[stack_length - 1] = to_bool(stack[stack_length - 1]) || to_bool(stack[stack_length]);
 			break;
 			case INST_AND:
 				stack_length--;
-				stack[stack_length - 1] = stack[stack_length - 1] && stack[stack_length];
+				stack[stack_length - 1] = to_bool(stack[stack_length - 1]) && to_bool(stack[stack_length]);
 			break;
 			case INST_NOT:
-				stack[stack_length - 1] = !stack[stack_length - 1];
+				stack[stack_length - 1] = !to_bool(stack[stack_length - 1]);
 			break;
 			case INST_XOR:
 				stack_length--;
@@ -1708,8 +1708,8 @@ int main(int argc, char **argv) {
 			printf("Compiled sucessfully.\n");
 		#endif
 
-		program1_memory[ADDRESS_OPPONENTS_LAST_PLAY] = 0;
-		program2_memory[ADDRESS_OPPONENTS_LAST_PLAY] = 0;
+		program1_memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
+		program2_memory[ADDRESS_OPPONENTS_LAST_PLAY] = -1;
 
 		int init_turn = run(program1_memory, program1_init_bytecode);
 		if (init_turn == TURN_ASSERT_FAILED) {

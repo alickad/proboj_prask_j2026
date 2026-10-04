@@ -47,7 +47,7 @@ MENO = VÝRAZ
 - `VÝRAZ` musí byť platný výraz.
 
 #### Podmienené príkazy
-Vykoná obsiahnutý kód, ak je podmienka celé číslo väčšie ako 0. Vnorenia sú povolené.
+Vykoná obsiahnutý kód, ak je podmienka celé číslo nerovné 0 (teda po converzii na bool je 1). Vnorenia sú povolené.
 
 Syntax:
 ```praskscript
@@ -134,7 +134,7 @@ Podporované matematické operácie:
 - Odčítanie `A - B`
 - Negácia `-A`
 - Násobenie `A * B` *(Poznámka: Implicitné násobenie, napr. `A(B + C)`, nie je podporované.)*
-- Celočíselné delenie `A / B` - vydelí A číslom B a zaokrúhli smerom k nule (odstráni desatinnú časť); delenie nulou spôsobí pád programu.
+- Celočíselné delenie `A / B` - vydelí A číslom B a zaokrúhli smerom k nule (odstráni desatinnú časť); delenie nulou spôsobí pád programu (vráti chybu).
 - Zvyšok po delení `A % B` - vráti zvyšok po delení A / B (vždy vráti celé číslo >= 0).
 
 ### Porovnanie:

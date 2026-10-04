@@ -56,7 +56,7 @@ ak CONDITION
 ...
 koniec
 ```
-- Conditional code is contained between `ak` and `koniec` and is executed if CONDITION is evaluates to integer bigger than 0.
+- Conditional code is contained between `ak` and `koniec` and is executed if CONDITION is evaluates to number not equal to `0` (thus after convertion to bool is `1`)
 - `CONDITION` must be a valid expression
 
 #### Return statements
@@ -139,7 +139,7 @@ Supported mathematic operations:
 - Subtraction `A - B` - subtract B from A
 - Negation `-A` - negate A
 - Multiplication `A * B` - multiply A and B _(Note: Implicit multiplication (e.g. `A(B + C)`) is not supported.)_
-- Whole number division `A / B` - devide A with B and truncate toward zero (discarding any fractional part), division by zero results in program crash
+- Whole number division `A / B` - devide A with B and truncate toward zero (discarding any fractional part), division by zero results in program crash (returns error)
 - Modulo operation `A % B` - gives a remained of division A / B (always returns integer >=0)
 
 ### Comparison:
