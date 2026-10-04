@@ -33,7 +33,7 @@ nech Z = (X + Y) / 2
 
 Program section will be executed on every turn.
 Supported statements:
-variable assignment (`NAME = EXPRESSION`),
+variable assignment (`NAME = EXPRESSION`), variable definition is NOT supported,
 conditional statements (`ak CONDITION ... koniec`),
 return statement (`zahraj ITEM`)
 

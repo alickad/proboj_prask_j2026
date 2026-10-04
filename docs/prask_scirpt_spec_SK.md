@@ -32,7 +32,7 @@ nech Z = (X + Y) / 2
 
 Sekcia Program sa vykoná v každom ťahu.
 Podporované príkazy:
-priradenie premennej (`MENO = VÝRAZ`),
+priradenie premennej (`MENO = VÝRAZ`), definovanie premennej NIE je možné v program sekcii,
 podmienené príkazy (`ak PODMIENKA ... koniec`),
 príkaz na ukončenie ťahu (`zahraj POLOŽKA`)
 

@@ -7,9 +7,11 @@ interpreter
 game_replay/*
 !game_replay/example_game.txt
 turnament/output
+turnament/programs
 
 **/scores.json
 
 .veduci_boti
 
 prog.txt
+.veduci_boti
