@@ -1131,6 +1131,7 @@ int run(int *memory, unsigned char *bytecode) {
 			case INST_XOR:
 				stack_length--;
 				stack[stack_length - 1] = to_bool(stack[stack_length - 1]) ^ to_bool(stack[stack_length]);
+			break;
 			case INST_JUMP_IF_ZERO_2:
 				n = bytecode[i++] << 8;
 				n += bytecode[i++];
@@ -1728,6 +1729,8 @@ int main(int argc, char **argv) {
 			turn_data[round_i * 2] = program1_turn;
 			turn_data[round_i * 2 + 1] = program2_turn;
 
+			program1_memory[ADDRESS_OPPONENTS_LAST_PLAY] = program1_turn;
+			program2_memory[ADDRESS_OPPONENTS_LAST_PLAY] = program2_turn;
 			result = who_won_round(program1_turn, program2_turn);
 			#ifdef DEBUG
 				printf("[DEBUG round %i] Turn1: %i, Turn2: %i, result: %i\n", round_i, program1_turn, program2_turn, result);
